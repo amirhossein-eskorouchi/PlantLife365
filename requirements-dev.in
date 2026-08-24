@@ -3,6 +3,6 @@
 # Validation / development dependencies
 # ============================================================
 
-pytest>=8,<9
+pytest>=9.1.1,<10
 pytest-django>=4.8,<5
 coverage>=7,<8
