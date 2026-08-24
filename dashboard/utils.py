@@ -12,8 +12,7 @@ try:
     import cv2
 except ImportError:
     cv2 = None
-    print("Warning: opencv-python not installed. Camera will not work.")
-
+    pass
 SERIAL_PORT = os.environ.get('PLANTLIFE365_SERIAL_PORT', '/dev/ttyCH341USB0') # this is the default port for the CH340 USB-serial adapter on linux. It may be different on other systems
 BAUD_RATE = 9600
 

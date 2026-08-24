@@ -148,3 +148,5 @@ DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@localhost')
 if not EMAIL_HOST_USER:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
+# Preserve the primary-key type used by the historical migrations.
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"

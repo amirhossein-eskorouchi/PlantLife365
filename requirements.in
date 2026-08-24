@@ -1,0 +1,29 @@
+# ============================================================
+# PlantLife365
+# Maintained application dependency constraints
+#
+# Historical files contained conflicting Django-version references.
+# The maintained repository standardizes on:
+#
+# Python 3.11
+# Django 5.2 LTS family
+# ============================================================
+
+Django>=5.2,<5.3
+django-cors-headers>=4.6,<5
+djangorestframework>=3.15,<4
+python-dotenv>=1.0,<2
+
+Pillow>=10.4,<13
+
+numpy>=1.26,<3
+pandas>=2.2,<3
+matplotlib>=3.8,<4
+seaborn>=0.13,<1
+scikit-learn>=1.4,<2
+
+openpyxl>=3.1,<4
+xlrd>=2,<3
+
+requests>=2.31,<3
+pyserial>=3.5,<4
