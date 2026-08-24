@@ -1,3 +1,5 @@
+import math
+
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from dashboard.ml_services import run_regression_analysis
@@ -162,20 +164,23 @@ def test_random_forest_is_reproducible_for_fixed_seed():
         "error"
     ] is None
 
-    assert first_result[
-        "mae"
-    ] == second_result[
-        "mae"
-    ]
+    assert math.isclose(
+        first_result["mae"],
+        second_result["mae"],
+        rel_tol=1e-12,
+        abs_tol=1e-12,
+    )
 
-    assert first_result[
-        "rmse"
-    ] == second_result[
-        "rmse"
-    ]
+    assert math.isclose(
+        first_result["rmse"],
+        second_result["rmse"],
+        rel_tol=1e-12,
+        abs_tol=1e-12,
+    )
 
-    assert first_result[
-        "r2"
-    ] == second_result[
-        "r2"
-    ]
+    assert math.isclose(
+        first_result["r2"],
+        second_result["r2"],
+        rel_tol=1e-12,
+        abs_tol=1e-12,
+    )

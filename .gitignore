@@ -163,3 +163,7 @@ wifi.local.*
 # ------------------------------------------------------------
 
 /firmware/esp32/config.py
+
+# Final PlantLife365 local/private exclusions
+*.pyc
+firmware/esp32/config.py

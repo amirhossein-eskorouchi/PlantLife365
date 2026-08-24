@@ -1,0 +1,203 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="820" viewBox="0 0 1400 820">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#475569"/>
+    </marker>
+
+    <style>
+      .title { font: 700 32px Arial, sans-serif; fill: #172033; }
+      .subtitle { font: 400 18px Arial, sans-serif; fill: #475569; }
+      .box-title { font: 700 19px Arial, sans-serif; fill: #172033; }
+      .box-text { font: 400 15px Arial, sans-serif; fill: #475569; }
+
+      .edge {
+        fill: #eef8f0;
+        stroke: #4f7d58;
+        stroke-width: 2;
+      }
+
+      .server {
+        fill: #eef3f8;
+        stroke: #58728d;
+        stroke-width: 2;
+      }
+
+      .service {
+        fill: #f8f5ee;
+        stroke: #8d7958;
+        stroke-width: 2;
+      }
+
+      .research {
+        fill: #f5f0f8;
+        stroke: #7c628d;
+        stroke-width: 2;
+        stroke-dasharray: 8 6;
+      }
+
+      .arrow {
+        stroke: #475569;
+        stroke-width: 2.2;
+        fill: none;
+        marker-end: url(#arrow);
+      }
+
+      .dashed {
+        stroke-dasharray: 8 7;
+      }
+    </style>
+  </defs>
+
+  <rect width="1400" height="820" fill="#ffffff"/>
+
+  <text x="700" y="55" text-anchor="middle" class="title">
+    PlantLife365 Maintained Architecture
+  </text>
+
+  <text x="700" y="86" text-anchor="middle" class="subtitle">
+    Authenticated edge sensing, user-scoped monitoring, analytics, and optional local AI
+  </text>
+
+  <rect x="65" y="155" rx="18" ry="18" width="250" height="190" class="edge"/>
+
+  <text x="190" y="195" text-anchor="middle" class="box-title">
+    ESP32 Edge Device
+  </text>
+
+  <text x="190" y="230" text-anchor="middle" class="box-text">
+    Temperature / humidity
+  </text>
+
+  <text x="190" y="257" text-anchor="middle" class="box-text">
+    Light / water / gas
+  </text>
+
+  <text x="190" y="284" text-anchor="middle" class="box-text">
+    Optional camera
+  </text>
+
+  <text x="190" y="316" text-anchor="middle" class="box-text">
+    MicroPython firmware
+  </text>
+
+  <rect x="420" y="155" rx="18" ry="18" width="260" height="190" class="server"/>
+
+  <text x="550" y="195" text-anchor="middle" class="box-title">
+    Authenticated Ingestion
+  </text>
+
+  <text x="550" y="230" text-anchor="middle" class="box-text">
+    Per-device secret
+  </text>
+
+  <text x="550" y="257" text-anchor="middle" class="box-text">
+    Payload validation
+  </text>
+
+  <text x="550" y="284" text-anchor="middle" class="box-text">
+    Sensor range checks
+  </text>
+
+  <text x="550" y="316" text-anchor="middle" class="box-text">
+    Image boundary checks
+  </text>
+
+  <rect x="785" y="155" rx="18" ry="18" width="260" height="190" class="server"/>
+
+  <text x="915" y="195" text-anchor="middle" class="box-title">
+    Django Data Layer
+  </text>
+
+  <text x="915" y="230" text-anchor="middle" class="box-text">
+    SensorReading
+  </text>
+
+  <text x="915" y="257" text-anchor="middle" class="box-text">
+    HardwareDevice
+  </text>
+
+  <text x="915" y="284" text-anchor="middle" class="box-text">
+    User-scoped logs
+  </text>
+
+  <text x="915" y="316" text-anchor="middle" class="box-text">
+    Ownership boundaries
+  </text>
+
+  <rect x="1120" y="155" rx="18" ry="18" width="220" height="190" class="service"/>
+
+  <text x="1230" y="195" text-anchor="middle" class="box-title">
+    Dashboard
+  </text>
+
+  <text x="1230" y="230" text-anchor="middle" class="box-text">
+    Live monitoring
+  </text>
+
+  <text x="1230" y="257" text-anchor="middle" class="box-text">
+    Historical data
+  </text>
+
+  <text x="1230" y="284" text-anchor="middle" class="box-text">
+    Statistics
+  </text>
+
+  <text x="1230" y="311" text-anchor="middle" class="box-text">
+    CSV export
+  </text>
+
+  <path d="M315 250 L420 250" class="arrow"/>
+  <path d="M680 250 L785 250" class="arrow"/>
+  <path d="M1045 250 L1120 250" class="arrow"/>
+
+  <rect x="365" y="455" rx="18" ry="18" width="285" height="175" class="service"/>
+
+  <text x="507" y="495" text-anchor="middle" class="box-title">
+    Exploratory ML
+  </text>
+
+  <text x="507" y="530" text-anchor="middle" class="box-text">
+    User-supplied tabular data
+  </text>
+
+  <text x="507" y="557" text-anchor="middle" class="box-text">
+    Regression models
+  </text>
+
+  <text x="507" y="584" text-anchor="middle" class="box-text">
+    Metrics + diagnostics
+  </text>
+
+  <rect x="760" y="455" rx="18" ry="18" width="285" height="175" class="service"/>
+
+  <text x="902" y="495" text-anchor="middle" class="box-title">
+    Optional Local AI
+  </text>
+
+  <text x="902" y="530" text-anchor="middle" class="box-text">
+    User-scoped context
+  </text>
+
+  <text x="902" y="557" text-anchor="middle" class="box-text">
+    Loopback Ollama by default
+  </text>
+
+  <text x="902" y="584" text-anchor="middle" class="box-text">
+    Application ownership remains authoritative
+  </text>
+
+  <path d="M1180 345 C1160 405 1030 420 940 455" class="arrow"/>
+  <path d="M1135 345 C1060 405 700 415 560 455" class="arrow"/>
+
+  <rect x="365" y="690" rx="16" ry="16" width="680" height="85" class="research"/>
+
+  <text x="705" y="724" text-anchor="middle" class="box-title">
+    Historical Research Extensions — Reference Only
+  </text>
+
+  <text x="705" y="753" text-anchor="middle" class="box-text">
+    Smart trap • CV experiments • MPCA compression • Jetson / edge prototypes • historical interfaces
+  </text>
+
+  <path d="M705 690 L705 642" class="arrow dashed"/>
+</svg>
