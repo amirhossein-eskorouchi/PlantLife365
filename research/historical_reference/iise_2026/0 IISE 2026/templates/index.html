@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IoT Sensors</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f8f8f8;
+            margin: 20px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #333;
+        }
+        #video-container {
+            display: inline-block;
+            border: 2px solid #ddd;
+            background: #000;
+        }
+        img#video-stream {
+            max-width: 100%;
+            height: auto;
+        }
+        #sensor-data {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            display: inline-block;
+            font-size: 1.2em;
+        }
+        .sensor-item {
+            margin: 10px 20px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+        .sensor-label {
+            font-weight: bold;
+            color: #333;
+        }
+        .sensor-value {
+            color: #0066cc;
+            font-size: 1.3em;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Current Data</h1>
+    <div id="video-container">
+        <img src="{{ url_for('video_feed') }}" width="800" height="600" alt="Video stream">
+    </div>
+    
+    <div id="sensor-data" role="region" aria-label="Sensor data">
+        <div class="sensor-item">
+            <div class="sensor-label">Time</div>
+            <div class="sensor-value" id="time-display">--:--:--</div>
+        </div>
+        <div class="sensor-item">
+            <div class="sensor-label">Temperature (°C)</div>
+            <div class="sensor-value" id="temp-display">--</div>
+        </div>
+        <div class="sensor-item">
+            <div class="sensor-label">Humidity (%)</div>
+            <div class="sensor-value" id="humidity-display">--</div>
+        </div>
+        <div class="sensor-item">
+            <div class="sensor-label">Soil Moisture</div>
+            <div class="sensor-value" id="soil-moisture-display">--</div>
+        </div>
+        <div class="sensor-item">
+            <div class="sensor-label">Radiation</div>
+            <div class="sensor-value" id="radiation-display">--</div>
+        </div>
+    </div>
+
+    <script>
+        // Fetch sensor data from the web server
+        function fetchSensorData() {
+            fetch('/sensor_data')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.temperature !== null && data.humidity !== null && data.soilMoist !== null && data.radiation !== null) {
+                        const temperature = parseFloat(data.temperature).toFixed(1);
+                        const humidity = parseFloat(data.humidity).toFixed(1);
+                        const soilMoist = parseFloat(data.soilMoist).toFixed(1);
+                        const radiation = parseFloat(data.radiation).toFixed(1);
+                        
+                        document.getElementById('temp-display').textContent = temperature;
+                        document.getElementById('humidity-display').textContent = humidity;
+                        document.getElementById('soil-moisture-display').textContent = soilMoist;
+                        document.getElementById('radiation-display').textContent = radiation;
+
+                    } else {
+                        document.getElementById('temp-display').textContent = 'N/A';
+                        document.getElementById('humidity-display').textContent = 'N/A';
+                        document.getElementById('soil-moisture-display').textContent = 'N/A';
+                        document.getElementById('radiation-display').textContent = N/A;
+                    }
+                })
+                .catch(error => {
+                    console.log('Error fetching sensor data:', error);
+                    document.getElementById('temp-display').textContent = 'Error';
+                    document.getElementById('humidity-display').textContent = 'Error';
+                    document.getElementById('soil-moisture-display').textContent = 'Error';
+                    document.getElementById('radiation-display').textContent = 'Error';
+                });
+        }
+
+        // Update time display
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { 
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            document.getElementById('time-display').textContent = timeString;
+        }
+
+        // Initialize and set intervals
+        updateTime();
+        fetchSensorData();
+        
+        // Update time every second
+        setInterval(updateTime, 1000);
+        
+        // Fetch sensor data every second
+        setInterval(fetchSensorData, 1000);
+    </script>
+</body>
+</html>

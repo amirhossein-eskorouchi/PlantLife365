@@ -101,3 +101,31 @@ payment implementation unless a real payment workflow is present.
 
 Final claims in the README will be tied directly to maintained source
 code and reproducible evidence.
+
+## G. Batch 6 research-reference disposition
+
+Research-extension candidates from the historical archive are now
+tracked under:
+
+`research/historical_reference/`
+
+and:
+
+`research/inventory/research_extensions_inventory.csv`
+
+These materials are historical/reference implementations only.
+
+The following extension families are intentionally separated from the
+canonical maintained application:
+
+- Smart Delta Trap work
+- YOLO/object-detection experiments
+- offline-monitoring prototypes
+- MPCA/image-compression experiments
+- Jetson/edge deployment work
+- historical Dash/Kivy interfaces
+- IISE 2026 research material
+- January 2026 historical generations
+
+Binary artifacts, datasets, runtime state, credentials, and unsafe
+historical files remain private-archive-only.
