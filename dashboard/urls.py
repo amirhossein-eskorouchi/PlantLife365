@@ -36,7 +36,6 @@ urlpatterns = [
     path('api/logs/', views.logs_api, name='logs_api'),
     path('api/logs/read/<int:log_id>/', views.mark_log_read, name='mark_log_read'),
     path('api/logs/delete/<int:log_id>/', views.delete_log, name='delete_log'),
-    path('api/logs/delete_user/<str:username>/', views.delete_user_logs, name='delete_user_logs'),
     path('api/logs/delete_all/', views.delete_all_logs, name='delete_all_logs'),
     path('api/logs/create/', views.create_log, name='create_log'),
     path('upload', views.receive_esp32_data, name='receive_esp32_data'),

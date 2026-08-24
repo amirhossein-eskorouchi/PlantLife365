@@ -1,3 +1,10 @@
+from .data_services import (
+    get_daily_statistics,
+    get_history,
+    get_latest_reading,
+    get_readings_for_date,
+    get_user_device_ids,
+)
 from django.shortcuts import render, redirect # type: ignore
 from django.http import StreamingHttpResponse # type: ignore
 from .utils import get_sensor_reading, get_camera_frame # type: ignore
@@ -66,138 +73,65 @@ def video_feed(request):
     StreamingHttpResponse keeps the connection open to send continuous data '''
     return StreamingHttpResponse(get_camera_frame(), content_type='multipart/x-mixed-replace; boundary=frame')
 
+@login_required(login_url='login')
 def sensor_api(request):
     """
-    Returns the latest sensor data as JSON from the database.
-    Example output: {temperature: 24.5, humidity: 60.2, light: 300, water_level: 10.5}
+    Return the latest telemetry belonging to the authenticated user.
+
+    Prediction fields are retained as null placeholders for dashboard
+    compatibility and will be implemented cleanly in Batch 5.
     """
-    user_devices = HardwareDevice.objects.filter(owner=request.user, is_active=True).values_list('device_id', flat=True)
-    if not user_devices:
-        return JsonResponse({
-            'status': 'offline',
-            'temperature': '--',
-            'humidity': '--',
-            'light': '--',
-            'water_level': '--',
-            'gas': '--',
-            'message': 'No devices connected yet'
-        })
 
-    try:
-        latest = SensorReading.objects.filter(device_id__in=user_devices).latest('timestamp')
-        
-        # Check subscription tier for prediction features
-        sub, _ = UserSubscription.objects.get_or_create(user=request.user)
-        can_predict = (sub.tier != 'STD')
-        
-        model_type = request.GET.get('model', 'predicted')
-        predicted_vals = {}
+    latest = get_latest_reading(
+        request.user
+    )
 
-        if can_predict:
-            if model_type == 'predicted':
-                # --- Predicted Comparison Logic (using Excel File) ---
-                try:
-                    excel_path = os.environ.get('PLANTLIFE365_REFERENCE_DATASET', '')
-                    if os.path.exists(excel_path) and HAS_ML_LIBRARIES:
-                        df_ref = pd.read_excel(excel_path)
-                        # Convert 'Time' to datetime if needed
-                        if 'Time' in df_ref.columns:
-                            df_ref['Time'] = pd.to_datetime(df_ref['Time'])
-                            
-                            # Find the closest "time of day" in the reference dataset
-                            # Current time of day
-                            now_time = latest.timestamp.time()
-                            
-                            # Simple approach: find rows within 5 minutes of this time of day
-                            df_ref['TOD'] = df_ref['Time'].dt.time
-                            # This is a bit complex for a quick lookup, let's just use the closest match by second-of-day
-                            now_sec = now_time.hour * 3600 + now_time.minute * 60 + now_time.second
-                            df_ref['sec_of_day'] = df_ref['Time'].dt.hour * 3600 + df_ref['Time'].dt.minute * 60 + df_ref['Time'].dt.second
-                            
-                            closest_row = df_ref.iloc[(df_ref['sec_of_day'] - now_sec).abs().argsort()[:1]]
-                            
-                            if not closest_row.empty:
-                                # Map columns dynamically to avoid encoding issues with special characters like Ã‚Â°C
-                                col_mapping = {}
-                                for col in df_ref.columns:
-                                    if 'Temp' in col: col_mapping['temp'] = col
-                                    elif 'Humid' in col: col_mapping['humid'] = col
-                                    elif 'Bright' in col or 'Light' in col: col_mapping['light'] = col
-                                    elif 'Moist' in col or 'Water' in col: col_mapping['water'] = col
-                                    elif 'CH4' in col or 'Gas' in col: col_mapping['gas'] = col
-                                
-                                predicted_vals['temp'] = closest_row.iloc[0].get(col_mapping.get('temp'))
-                                predicted_vals['humid'] = closest_row.iloc[0].get(col_mapping.get('humid'))
-                                predicted_vals['light'] = closest_row.iloc[0].get(col_mapping.get('light'))
-                                predicted_vals['water'] = closest_row.iloc[0].get(col_mapping.get('water'))
-                                predicted_vals['gas'] = closest_row.iloc[0].get(col_mapping.get('gas'))
-                except Exception as e:
-                    logger.error(f"Error fetching predicted data from Excel: {e}")
-            else:
-                # --- ML Prediction Logic (Linear, RF, etc.) ---
-                if HAS_ML_LIBRARIES:
-                    try:
-                        # Fetch last 300 readings for context
-                        past_qs = SensorReading.objects.filter(device_id__in=user_devices).order_by('-timestamp')[:300]
-                        if past_qs.count() > 10:
-                            import pandas as pd
-                            import numpy as np
-                            df = pd.DataFrame(list(past_qs.values('timestamp', 'temperature', 'humidity', 'light', 'water_level', 'gas')))
-                            df['unix'] = df['timestamp'].apply(lambda x: x.timestamp())
-                            
-                            X = df[['unix']].values
-                            latest_unix = np.array([[latest.timestamp.timestamp()]])
-                            
-                            def get_prediction(y_col, m_type):
-                                y = df[y_col].values
-                                if m_type == 'linear':
-                                    from sklearn.linear_model import LinearRegression
-                                    model = LinearRegression()
-                                elif m_type == 'random_forest':
-                                    from sklearn.ensemble import RandomForestRegressor
-                                    model = RandomForestRegressor(n_estimators=10, random_state=42)
-                                elif m_type == 'gbm':
-                                    from sklearn.ensemble import GradientBoostingRegressor
-                                    model = GradientBoostingRegressor(n_estimators=10, random_state=42)
-                                else:
-                                    return None
-                                
-                                model.fit(X, y)
-                                return round(float(model.predict(latest_unix)[0]), 2)
+    if latest is None:
+        return JsonResponse(
+            {
+                'status': 'offline',
+                'temperature': '--',
+                'humidity': '--',
+                'light': '--',
+                'water_level': '--',
+                'gas': '--',
+                'predicted_temp': None,
+                'predicted_humid': None,
+                'predicted_light': None,
+                'predicted_water': None,
+                'predicted_gas': None,
+                'predicted_date': None,
+                'prediction_status': (
+                    'deferred_to_batch_5'
+                ),
+                'message': (
+                    'No active device telemetry available'
+                ),
+            }
+        )
 
-                            predicted_vals['temp'] = get_prediction('temperature', model_type)
-                            predicted_vals['humid'] = get_prediction('humidity', model_type)
-                            predicted_vals['light'] = get_prediction('light', model_type)
-                            predicted_vals['water'] = get_prediction('water_level', model_type)
-                            predicted_vals['gas'] = get_prediction('gas', model_type)
-                    except Exception as ml_e:
-                        logger.error(f"Live ML prediction failed: {ml_e}")
-        
-        return JsonResponse({
+    return JsonResponse(
+        {
             'status': 'online',
+            'device_id': latest.device_id,
             'temperature': latest.temperature,
-            'predicted_temp': predicted_vals.get('temp'),
             'humidity': latest.humidity,
-            'predicted_humid': predicted_vals.get('humid'),
             'light': latest.light,
-            'predicted_light': predicted_vals.get('light'),
             'water_level': latest.water_level,
-            'predicted_water': predicted_vals.get('water'),
             'gas': latest.gas,
-            'predicted_gas': predicted_vals.get('gas'),
-            'predicted_date': 'AI Model' if can_predict else None,
-            'timestamp': latest.timestamp.isoformat()
-        })
-    except SensorReading.DoesNotExist:
-        return JsonResponse({
-            'status': 'offline',
-            'temperature': '--',
-            'humidity': '--',
-            'light': '--',
-            'water_level': '--',
-            'gas': '--'
-        })
-    
+            'predicted_temp': None,
+            'predicted_humid': None,
+            'predicted_light': None,
+            'predicted_water': None,
+            'predicted_gas': None,
+            'predicted_date': None,
+            'prediction_status': (
+                'deferred_to_batch_5'
+            ),
+            'timestamp': latest.timestamp.isoformat(),
+        }
+    )
+
 @csrf_exempt
 @require_POST
 def receive_esp32_data(request):
@@ -809,7 +743,7 @@ def ml_analyze(request):
                     
                     # Add R^2 value within the plot
                     bbox_props = dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8)
-                    ax3.text(0.05, 0.95, f"RÃ‚Â² = {r2:.4f}", transform=ax3.transAxes, fontsize=10,
+                    ax3.text(0.05, 0.95, f"RÃƒâ€šÃ‚Â² = {r2:.4f}", transform=ax3.transAxes, fontsize=10,
                              verticalalignment='top', bbox=bbox_props)
                     
                     ax3.tick_params(labelsize=9)
@@ -926,123 +860,373 @@ def ml_analyze(request):
 
     return JsonResponse({'report_html': report_html})
 
+@login_required(login_url='login')
 def logs_api(request):
-    """ Returns the 7 most recent logs and total unread count """
-    logs = SystemLog.objects.all()[:7]
-    unread_count = SystemLog.objects.filter(is_read=False).count()
-    
+    """
+    Return the authenticated user's most recent alerts/logs.
+    """
+
+    logs = (
+        SystemLog.objects
+        .filter(
+            owner=request.user
+        )
+        .order_by(
+            '-timestamp'
+        )[:20]
+    )
+
+    unread_count = (
+        SystemLog.objects
+        .filter(
+            owner=request.user,
+            is_read=False,
+        )
+        .count()
+    )
+
     data = []
+
     for log in logs:
-        data.append({
-            'id': log.id,
-            'level': log.level,
-            'message': log.message,
-            'timestamp': log.timestamp.strftime('%b %d, %Y %I:%M %p'),
-            'is_read': log.is_read
-        })
-    return JsonResponse({'status': 'success', 'logs': data, 'unread_count': unread_count})
 
-@csrf_exempt
-def mark_log_read(request, log_id):
-    if request.method == 'POST':
-        try:
-            log = SystemLog.objects.get(id=log_id)
-            log.is_read = True
-            log.save()
-            return JsonResponse({'status': 'success'})
-        except SystemLog.DoesNotExist:
-            return JsonResponse({'status': 'error', 'message': 'Log not found'}, status=404)
-    return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
+        data.append(
+            {
+                'id': log.id,
+                'level': log.level,
+                'message': log.message,
+                'device_id': log.device_id,
+                'timestamp': log.timestamp.strftime(
+                    '%b %d, %Y %I:%M %p'
+                ),
+                'is_read': log.is_read,
+            }
+        )
 
-@csrf_exempt
-def delete_log(request, log_id):
-    if request.method == 'POST':
-        try:
-            log = SystemLog.objects.get(id=log_id)
-            log.delete()
-            return JsonResponse({'status': 'success'})
-        except SystemLog.DoesNotExist:
-            return JsonResponse({'status': 'error', 'message': 'Log not found'}, status=404)
-    return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
-
-@csrf_exempt
-def delete_all_logs(request):
-    if request.method == 'POST':
-        SystemLog.objects.all().delete()
-        return JsonResponse({'status': 'success'})
-    return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
+    return JsonResponse(
+        {
+            'status': 'success',
+            'logs': data,
+            'unread_count': unread_count,
+        }
+    )
 
 
-@csrf_exempt
-def delete_user_logs(request, username):
-    """Delete all SystemLog entries whose message contains the given username (case-insensitive)."""
-    if request.method == 'POST':
-        try:
-            SystemLog.objects.filter(message__icontains=username).delete()
-            return JsonResponse({'status': 'success'})
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-    return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
-
-@csrf_exempt
-def create_log(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            level = data.get('level', 'INFO')
-            message = data.get('message', '')
-            if message:
-                SystemLog.objects.create(level=level, message=message)
-                return JsonResponse({'status': 'success'})
-            return JsonResponse({'status': 'error', 'message': 'Message is required'}, status=400)
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-    return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
-
-def export_csv_by_date(request):
-    import csv
-    from django.http import HttpResponse # type: ignore
-    from datetime import datetime
-    
-    if not request.user.is_authenticated:
-         return JsonResponse({'error': 'Unauthorized'}, status=401)
-    
-    date_str = request.GET.get('date')
-    if not date_str:
-        return JsonResponse({'error': 'Date parameter is required.'}, status=400)
-        
+@login_required(login_url='login')
+@require_POST
+def mark_log_read(
+    request,
+    log_id,
+):
     try:
-        # Validate date format YYYY-MM-DD
-        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
-    except ValueError:
-        return JsonResponse({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=400)
-        
-    user_devices = HardwareDevice.objects.filter(owner=request.user, is_active=True).values_list('device_id', flat=True)
-    if not user_devices:
-        return JsonResponse({'error': 'No active devices found for user.'}, status=404)
 
-    readings = SensorReading.objects.filter(device_id__in=user_devices, timestamp__date=date_obj).order_by('timestamp')
-    
+        log = SystemLog.objects.get(
+            id=log_id,
+            owner=request.user,
+        )
+
+    except SystemLog.DoesNotExist:
+
+        return JsonResponse(
+            {
+                'status': 'error',
+                'message': 'Log not found',
+            },
+            status=404,
+        )
+
+    log.is_read = True
+
+    log.save(
+        update_fields=[
+            'is_read'
+        ]
+    )
+
+    return JsonResponse(
+        {
+            'status': 'success'
+        }
+    )
+
+
+@login_required(login_url='login')
+@require_POST
+def delete_log(
+    request,
+    log_id,
+):
+    try:
+
+        log = SystemLog.objects.get(
+            id=log_id,
+            owner=request.user,
+        )
+
+    except SystemLog.DoesNotExist:
+
+        return JsonResponse(
+            {
+                'status': 'error',
+                'message': 'Log not found',
+            },
+            status=404,
+        )
+
+    log.delete()
+
+    return JsonResponse(
+        {
+            'status': 'success'
+        }
+    )
+
+
+@login_required(login_url='login')
+@require_POST
+def delete_all_logs(request):
+
+    deleted_count, _ = (
+        SystemLog.objects
+        .filter(
+            owner=request.user
+        )
+        .delete()
+    )
+
+    return JsonResponse(
+        {
+            'status': 'success',
+            'deleted_count': deleted_count,
+        }
+    )
+
+
+@login_required(login_url='login')
+@require_POST
+def create_log(request):
+    """
+    Create one user-owned dashboard alert.
+
+    The current dashboard generates threshold alerts client-side. This
+    endpoint validates and stores those alerts without allowing one user
+    to create or modify another user's log records.
+    """
+
+    try:
+        data = json.loads(
+            request.body
+        )
+
+    except json.JSONDecodeError:
+
+        return JsonResponse(
+            {
+                'status': 'error',
+                'message': 'Invalid JSON payload',
+            },
+            status=400,
+        )
+
+    level = str(
+        data.get(
+            'level',
+            'INFO',
+        )
+    ).upper()
+
+    allowed_levels = {
+        'INFO',
+        'WARNING',
+        'CRITICAL',
+    }
+
+    if level not in allowed_levels:
+
+        return JsonResponse(
+            {
+                'status': 'error',
+                'message': 'Invalid log level',
+            },
+            status=400,
+        )
+
+    message = str(
+        data.get(
+            'message',
+            '',
+        )
+    ).strip()
+
+    if not message:
+
+        return JsonResponse(
+            {
+                'status': 'error',
+                'message': 'Message is required',
+            },
+            status=400,
+        )
+
+    if len(message) > 1000:
+
+        return JsonResponse(
+            {
+                'status': 'error',
+                'message': (
+                    'Message exceeds 1000 characters'
+                ),
+            },
+            status=400,
+        )
+
+    device_id = str(
+        data.get(
+            'device_id',
+            '',
+        )
+    ).strip()
+
+    if device_id:
+
+        device_owned = HardwareDevice.objects.filter(
+            owner=request.user,
+            device_id=device_id,
+        ).exists()
+
+        if not device_owned:
+
+            return JsonResponse(
+                {
+                    'status': 'error',
+                    'message': (
+                        'Unknown device for current user'
+                    ),
+                },
+                status=400,
+            )
+
+    else:
+        device_id = None
+
+    log = SystemLog.objects.create(
+        owner=request.user,
+        device_id=device_id,
+        level=level,
+        message=message,
+    )
+
+    return JsonResponse(
+        {
+            'status': 'success',
+            'id': log.id,
+        },
+        status=201,
+    )
+
+@login_required(login_url='login')
+def export_csv_by_date(request):
+    """
+    Export the authenticated user's telemetry for one calendar date.
+    """
+
+    import csv
+    from datetime import datetime
+
+    from django.http import HttpResponse
+
+    date_str = (
+        request.GET.get(
+            'date'
+        )
+        or ''
+    ).strip()
+
+    if not date_str:
+
+        return JsonResponse(
+            {
+                'error': (
+                    'Date parameter is required.'
+                )
+            },
+            status=400,
+        )
+
+    try:
+
+        date_value = datetime.strptime(
+            date_str,
+            '%Y-%m-%d',
+        ).date()
+
+    except ValueError:
+
+        return JsonResponse(
+            {
+                'error': (
+                    'Invalid date format. '
+                    'Use YYYY-MM-DD.'
+                )
+            },
+            status=400,
+        )
+
+    readings = get_readings_for_date(
+        request.user,
+        date_value,
+    )
+
     if not readings.exists():
-         return JsonResponse({'error': 'No data available for the selected date.'}, status=404)
-         
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = f'attachment; filename="PlantLife365_Data_{date_str}.csv"'
-    
-    writer = csv.writer(response)
-    writer.writerow(['Time', 'Device ID', 'Temperature (Ã‚Â°C)', 'Humidity (%)', 'Moisture Level (%)', 'Brightness (%)', 'CH4 Gas (%)'])
-    
+
+        return JsonResponse(
+            {
+                'error': (
+                    'No data available for '
+                    'the selected date.'
+                )
+            },
+            status=404,
+        )
+
+    response = HttpResponse(
+        content_type='text/csv'
+    )
+
+    response['Content-Disposition'] = (
+        'attachment; '
+        f'filename="PlantLife365_Data_{date_str}.csv"'
+    )
+
+    writer = csv.writer(
+        response
+    )
+
+    writer.writerow(
+        [
+            'Timestamp',
+            'Device ID',
+            'Temperature (C)',
+            'Humidity (%)',
+            'Water Level (%)',
+            'Light (%)',
+            'Gas (%)',
+        ]
+    )
+
     for reading in readings:
-        writer.writerow([
-            reading.timestamp.strftime('%H:%M:%S'),
-            reading.device_id or 'Unknown',
-            reading.temperature,
-            reading.humidity,
-            reading.water_level,
-            reading.light,
-            reading.gas
-        ])
-        
+
+        writer.writerow(
+            [
+                reading.timestamp.isoformat(),
+                reading.device_id or '',
+                reading.temperature,
+                reading.humidity,
+                reading.water_level,
+                reading.light,
+                reading.gas,
+            ]
+        )
+
     return response
 
 from django.contrib import messages # type: ignore
@@ -1077,70 +1261,135 @@ def delete_device(request, device_id):
             messages.error(request, "Device not found.")
     return redirect('settings')
 
+@login_required(login_url='login')
 def sensor_history_api(request):
-    period = request.GET.get('period', 'live')
-    if not request.user.is_authenticated:
-        return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=401)
-        
-    user_devices = HardwareDevice.objects.filter(owner=request.user, is_active=True).values_list('device_id', flat=True)
-    if not user_devices:
-        return JsonResponse({'status': 'offline', 'data': []})
-        
-    from datetime import timedelta
-    from django.utils import timezone
-    now = timezone.now()
-    
-    if period == '1h':
-        start_time = now - timedelta(hours=1)
-    elif period == '1d':
-        start_time = now - timedelta(days=1)
-    elif period == '1w':
-        start_time = now - timedelta(weeks=1)
-    else:
-        # Defaults to 'live' just fetching the last empty dict to not duplicate work
-        return JsonResponse({'status': 'online', 'data': []})
-        
-    readings = SensorReading.objects.filter(device_id__in=user_devices, timestamp__gte=start_time).order_by('timestamp')
-    
-    count = readings.count()
-    if count > 100:
-        step = count // 50
-        readings = list(readings)[::step]
-    
-    data = [{
-        't': r.temperature, 'h': r.humidity, 'w': r.water_level, 
-        'l': r.light, 'g': r.gas, 'time': r.timestamp.strftime('%H:%M:%S' if period == '1h' else '%m/%d %H:%M')
-    } for r in readings]
-    
-    return JsonResponse({'status': 'online', 'data': data})
-
-def daily_sensor_stats_api(request):
     """
-    Returns the Min, Max, and Avg for all sensors over the past 24 hours.
+    Return bounded historical telemetry for the authenticated user.
     """
-    if not request.user.is_authenticated:
-        return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=401)
-        
-    user_devices = HardwareDevice.objects.filter(owner=request.user, is_active=True).values_list('device_id', flat=True)
-    if not user_devices:
-        return JsonResponse({'status': 'offline', 'data': {}})
 
-    # Calculate the time for 1 day ago
-    one_day_ago = timezone.now() - timedelta(days=1)
-    
-    # Filter readings for the past 24 hours
-    readings = SensorReading.objects.filter(device_id__in=user_devices, timestamp__gte=one_day_ago)
+    period = (
+        request.GET.get(
+            'period',
+            'live',
+        )
+        or 'live'
+    ).strip()
 
-    # Use Django's aggregate function to do the heavy lifting in the database
-    stats = readings.aggregate(
-        temp_min=Min('temperature'), temp_max=Max('temperature'), temp_avg=Avg('temperature'),
-        humid_min=Min('humidity'), humid_max=Max('humidity'), humid_avg=Avg('humidity'),
-        water_min=Min('water_level'), water_max=Max('water_level'), water_avg=Avg('water_level'),
-        light_min=Min('light'), light_max=Max('light'), light_avg=Avg('light'),
-        gas_min=Min('gas'), gas_max=Max('gas'), gas_avg=Avg('gas')
+    if period == 'live':
+
+        return JsonResponse(
+            {
+                'status': 'online',
+                'data': [],
+            }
+        )
+
+    allowed_periods = {
+        '1h',
+        '1d',
+        '1w',
+    }
+
+    if period not in allowed_periods:
+
+        return JsonResponse(
+            {
+                'status': 'error',
+                'message': (
+                    'Unsupported history period'
+                ),
+            },
+            status=400,
+        )
+
+    readings = get_history(
+        request.user,
+        period,
+        max_points=100,
     )
 
-    return JsonResponse({'status': 'online', 'stats': stats})
+    if not readings:
+
+        return JsonResponse(
+            {
+                'status': 'offline',
+                'data': [],
+            }
+        )
+
+    data = []
+
+    for reading in readings:
+
+        if period == '1h':
+
+            display_time = (
+                reading.timestamp.strftime(
+                    '%H:%M:%S'
+                )
+            )
+
+        else:
+
+            display_time = (
+                reading.timestamp.strftime(
+                    '%m/%d %H:%M'
+                )
+            )
+
+        data.append(
+            {
+                'device_id': reading.device_id,
+                't': reading.temperature,
+                'h': reading.humidity,
+                'w': reading.water_level,
+                'l': reading.light,
+                'g': reading.gas,
+                'time': display_time,
+                'timestamp': (
+                    reading.timestamp.isoformat()
+                ),
+            }
+        )
+
+    return JsonResponse(
+        {
+            'status': 'online',
+            'period': period,
+            'points': len(data),
+            'data': data,
+        }
+    )
+
+
+@login_required(login_url='login')
+def daily_sensor_stats_api(request):
+    """
+    Return rolling 24-hour telemetry statistics for the authenticated
+    user's active devices.
+    """
+
+    stats = get_daily_statistics(
+        request.user,
+        hours=24,
+    )
+
+    if stats is None:
+
+        return JsonResponse(
+            {
+                'status': 'offline',
+                'stats': {},
+            }
+        )
+
+    return JsonResponse(
+        {
+            'status': 'online',
+            'window_hours': 24,
+            'stats': stats,
+        }
+    )
 
 @login_required(login_url='login')
 def ml_custom_code(request):
@@ -1200,7 +1449,7 @@ def chatbot_response(request):
                     latest = SensorReading.objects.filter(device_id__in=user_devices).latest('timestamp')
                     sensor_info = (
                         f"Current Sensor Data (as of {latest.timestamp.strftime('%H:%M:%S')}):\n"
-                        f"- Temperature: {latest.temperature}Ã‚Â°C\n"
+                        f"- Temperature: {latest.temperature}Ãƒâ€šÃ‚Â°C\n"
                         f"- Humidity: {latest.humidity}%\n"
                         f"- Soil Moisture: {latest.water_level}%\n"
                         f"- Light Level: {latest.light}%\n"
@@ -1210,7 +1459,7 @@ def chatbot_response(request):
                     pass
                 
                 # 3. Fetch Recent Logs
-                logs = SystemLog.objects.all()[:5]
+                logs = SystemLog.objects.filter(owner=request.user).order_by('-timestamp')[:5]
                 log_info = "Recent System Logs:\n" + "\n".join([f"- [{l.level}] {l.timestamp.strftime('%H:%M')}: {l.message}" for l in logs])
                 
                 # 4. Fetch User Info

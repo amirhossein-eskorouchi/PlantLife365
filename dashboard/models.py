@@ -50,6 +50,20 @@ class SystemLog(models.Model):
         ("CRITICAL", "Critical"),
     ]
 
+    owner = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="plantlife365_logs",
+    )
+
+    device_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+    )
+
     level = models.CharField(
         max_length=10,
         choices=LEVEL_CHOICES,
@@ -70,8 +84,15 @@ class SystemLog(models.Model):
         ordering = ["-timestamp"]
 
     def __str__(self):
+        owner_name = (
+            self.owner.username
+            if self.owner
+            else "Legacy/Unassigned"
+        )
+
         return (
             f"[{self.level}] "
+            f"{owner_name}: "
             f"{self.message} "
             f"at {self.timestamp}"
         )
@@ -145,10 +166,14 @@ class HardwareDevice(models.Model):
                 self.secret_pin
             )
             return True
+
         except ValueError:
             return False
 
-    def set_secret_pin(self, raw_pin):
+    def set_secret_pin(
+        self,
+        raw_pin,
+    ):
         if not raw_pin:
             raise ValueError(
                 "Device secret cannot be empty"
@@ -158,14 +183,10 @@ class HardwareDevice(models.Model):
             str(raw_pin)
         )
 
-    def check_secret_pin(self, raw_pin):
-        """
-        Validate a device secret.
-
-        Historical private databases may contain plaintext device PINs.
-        Plaintext comparison is retained only for controlled migration.
-        """
-
+    def check_secret_pin(
+        self,
+        raw_pin,
+    ):
         if not raw_pin:
             return False
 
@@ -189,15 +210,12 @@ class HardwareDevice(models.Model):
         self,
         raw_pin,
     ):
-        """
-        Upgrade a successfully verified historical plaintext PIN to the
-        maintained password-hash representation.
-        """
-
         if self._pin_is_hashed():
             return False
 
-        if not self.check_secret_pin(raw_pin):
+        if not self.check_secret_pin(
+            raw_pin
+        ):
             return False
 
         self.set_secret_pin(
