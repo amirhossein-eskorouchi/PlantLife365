@@ -1,46 +1,71 @@
 # ESP32 Firmware
 
-This directory contains the initial maintained ESP32/MicroPython
-firmware candidate recovered from the historical PlantLife365
-development archive.
+This directory contains the maintained ESP32/MicroPython telemetry
+firmware recovered from the historical PlantLife365 development
+archive.
 
 ## Configuration
 
-Device-specific values are intentionally excluded from Git.
+Copy:
 
-1. Copy:
+`config.example.py`
 
-   `config.example.py` → `config.py`
+to:
 
-2. Set the device-specific:
+`config.py`
 
-   - access-point SSID
-   - access-point password
-   - server IP
-   - server port
-   - device identifier
+and provide deployment-specific values for:
 
-3. Deploy `main.py` and `config.py` to the ESP32.
+- `WIFI_SSID`
+- `WIFI_PASS`
+- `PC_IP`
+- `PC_PORT`
+- `DEVICE_ID`
+- `DEVICE_TOKEN`
 
-`config.py` is ignored by Git.
+The real `config.py` is excluded from Git.
 
-## Current telemetry
+## Device authentication
 
-The recovered canonical firmware collects:
+`DEVICE_ID` identifies the registered PlantLife365 hardware device.
+
+`DEVICE_TOKEN` must match the Device Password / Secret PIN associated
+with the same `HardwareDevice` in Django.
+
+The firmware sends the token through:
+
+`X-PlantLife365-Token`
+
+The Django application stores the corresponding secret using Django
+password hashing.
+
+## Telemetry
+
+The maintained firmware sends:
 
 - temperature
 - humidity
-- light
-- water level
-- gas measurement
-- JPEG camera image
+- light percentage
+- water-level percentage
+- gas percentage
+- optional JPEG camera image
 
-and sends them to the Django `/upload` endpoint.
+to:
 
-## Security status
+`POST /upload`
 
-Batch 2 externalizes deployment credentials.
+## Security scope
 
-Per-device authenticated telemetry is intentionally deferred to
-Batch 3 and must be completed before the ingestion interface is
-considered hardened.
+The current implementation uses a per-device shared secret.
+
+This prevents telemetry submission using only knowledge of a valid
+device identifier.
+
+Additional production hardening may include:
+
+- HTTPS/TLS
+- token rotation
+- replay protection
+- rate limiting
+- device certificates
+- secure centralized provisioning

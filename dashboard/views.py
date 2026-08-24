@@ -9,6 +9,13 @@ import os
 import io
 from PIL import Image, ImageDraw, ImageFont
 from django.views.decorators.csrf import csrf_exempt # type: ignore
+from django.views.decorators.http import require_POST # type: ignore
+from django.db import transaction # type: ignore
+from .device_ingestion import (
+    DevicePayloadError,
+    parse_sensor_payload,
+    validate_image_upload,
+)
 from django.core.files.storage import default_storage # type: ignore
 from django.core.files.base import ContentFile  # type: ignore
 import json
@@ -110,7 +117,7 @@ def sensor_api(request):
                             closest_row = df_ref.iloc[(df_ref['sec_of_day'] - now_sec).abs().argsort()[:1]]
                             
                             if not closest_row.empty:
-                                # Map columns dynamically to avoid encoding issues with special characters like Â°C
+                                # Map columns dynamically to avoid encoding issues with special characters like Ã‚Â°C
                                 col_mapping = {}
                                 for col in df_ref.columns:
                                     if 'Temp' in col: col_mapping['temp'] = col
@@ -192,81 +199,186 @@ def sensor_api(request):
         })
     
 @csrf_exempt
+@require_POST
 def receive_esp32_data(request):
-    if request.method == 'POST':
+    """
+    Authenticated PlantLife365 device-ingestion endpoint.
+
+    Expected request:
+    - multipart/form-data
+    - JSON telemetry in the ``data`` field
+    - optional JPEG in the ``image`` field
+    - per-device secret in X-PlantLife365-Token
+    """
+
+    try:
+        payload = parse_sensor_payload(
+            request.POST.get('data')
+        )
+
+    except DevicePayloadError as exc:
+        return JsonResponse(
+            {
+                'status': 'error',
+                'message': str(exc),
+            },
+            status=400,
+        )
+
+    device_id = payload['device_id']
+
+    try:
+        hardware_device = HardwareDevice.objects.get(
+            device_id=device_id,
+            is_active=True,
+        )
+
+    except HardwareDevice.DoesNotExist:
+        logger.warning(
+            'Rejected telemetry from unknown or inactive '
+            'device_id=%s',
+            device_id,
+        )
+
+        return JsonResponse(
+            {
+                'status': 'error',
+                'message': 'Device authentication failed',
+            },
+            status=403,
+        )
+
+    device_token = request.headers.get(
+        'X-PlantLife365-Token',
+        '',
+    ).strip()
+
+    if not hardware_device.check_secret_pin(
+        device_token
+    ):
+        logger.warning(
+            'Rejected telemetry authentication for '
+            'device_id=%s',
+            device_id,
+        )
+
+        return JsonResponse(
+            {
+                'status': 'error',
+                'message': 'Device authentication failed',
+            },
+            status=403,
+        )
+
+    if hardware_device.upgrade_legacy_secret_pin(
+        device_token
+    ):
+        hardware_device.save(
+            update_fields=[
+                'secret_pin'
+            ]
+        )
+
+    image_file = request.FILES.get(
+        'image'
+    )
+
+    try:
+        validate_image_upload(
+            image_file
+        )
+
+    except DevicePayloadError as exc:
+        return JsonResponse(
+            {
+                'status': 'error',
+                'message': str(exc),
+            },
+            status=400,
+        )
+
+    live_image_bytes = None
+
+    if image_file is not None:
+
         try:
-            # 1. Get JSON data
-            json_data = request.POST.get('data')
-            if not json_data:
-                return JsonResponse({'status': 'error', 'message': 'No data field provided'}, status=400)
-            
-            data = json.loads(json_data)
-            
-            # Validate device_id
-            device_id = data.get('device_id', 'DeviceOne')
-            if not device_id:
-                return JsonResponse({'status': 'error', 'message': 'Missing device_id in payload'}, status=400)
-                
-            try:
-                hardware_device = HardwareDevice.objects.get(device_id=device_id, is_active=True)
-            except HardwareDevice.DoesNotExist:
-                 return JsonResponse({'status': 'error', 'message': 'Invalid or inactive device_id'}, status=403)
-            
-            # 2. Get Image
-            image_file = request.FILES.get('image')
-            
-            # 3. Create SensorReading
-            reading = SensorReading.objects.create(
-                temperature=float(data.get('temp', 0.0)),
-                humidity=float(data.get('humidity', 0.0)),
-                light=float(data.get('light', 0.0)),
-                water_level=float(data.get('water_level', 0.0)),
-                gas=float(data.get('gas', 0.0)),
-                device_id=hardware_device.device_id,
-                image=image_file
+            image_file.seek(0)
+            live_image_bytes = image_file.read()
+            image_file.seek(0)
+
+        except Exception:
+            logger.exception(
+                'Could not read validated device image'
             )
 
-            # (SystemLogs are now generated dynamically by the frontend dashboard)
+            return JsonResponse(
+                {
+                    'status': 'error',
+                    'message': (
+                        'Could not process device image'
+                    ),
+                },
+                status=400,
+            )
 
-            # 4. Update the 'live' image for the dashboard
-            if image_file:
-                # Seek to 0 because .create() might have read it
-                image_file.seek(0)
-                
-                # Preserve the latest device image for the live dashboard.
-                # The maintained repository does not add synthetic AI labels.
-                try:
-                    image_file.seek(0)
+    try:
 
-                    if default_storage.exists('live_feed.jpg'):
-                        default_storage.delete('live_feed.jpg')
+        with transaction.atomic():
 
-                    default_storage.save(
-                        'live_feed.jpg',
-                        ContentFile(image_file.read())
-                    )
+            reading = SensorReading.objects.create(
+                temperature=payload['temp'],
+                humidity=payload['humidity'],
+                light=payload['light'],
+                water_level=payload[
+                    'water_level'
+                ],
+                gas=payload['gas'],
+                device_id=hardware_device.device_id,
+                image=image_file,
+            )
 
-                except Exception as image_e:
-                    logger.warning(
-                        f"Could not update live image: {image_e}"
-                    )
+        if live_image_bytes is not None:
 
-            return JsonResponse({'status': 'success', 'id': reading.id}) # type: ignore
+            if default_storage.exists(
+                'live_feed.jpg'
+            ):
+                default_storage.delete(
+                    'live_feed.jpg'
+                )
 
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-            
-    return JsonResponse({'status': 'error', 'message': 'Only POST method allowed'}, status=405)
+            default_storage.save(
+                'live_feed.jpg',
+                ContentFile(
+                    live_image_bytes
+                ),
+            )
 
-@csrf_exempt
-def upload_image(request):
-    if request.method == 'POST' and request.FILES.get('image'):
-        image_file = request.FILES['image']
-        file_path = default_storage.save(os.path.join('uploads', image_file.name), ContentFile(image_file.read()))
-        return JsonResponse({'status': 'success', 'file_path': file_path})
-    else:
-        return JsonResponse({'status': 'error', 'message': 'No image uploaded'}, status=400)
-    
+        return JsonResponse(
+            {
+                'status': 'success',
+                'id': reading.id,
+                'device_id': hardware_device.device_id,
+            },
+            status=201,
+        )
+
+    except Exception:
+        logger.exception(
+            'Unexpected telemetry-ingestion failure '
+            'for device_id=%s',
+            device_id,
+        )
+
+        return JsonResponse(
+            {
+                'status': 'error',
+                'message': (
+                    'Server could not process telemetry'
+                ),
+            },
+            status=500,
+        )
+
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
@@ -307,62 +419,164 @@ def intro_view(request):
 
 @login_required(login_url='login')
 def add_device_view(request):
-    profile, created = UserProfile.objects.get_or_create(user=request.user)
-    user_sub, created = UserSubscription.objects.get_or_create(user=request.user)
+    profile, _ = UserProfile.objects.get_or_create(
+        user=request.user
+    )
+
+    user_sub, _ = UserSubscription.objects.get_or_create(
+        user=request.user
+    )
 
     if request.method == 'POST':
-        # Check if the user wants to skip
-        action = request.POST.get('action')
+
+        action = request.POST.get(
+            'action'
+        )
+
         if action == 'skip':
-            return redirect('dashboard')
+            return redirect(
+                'dashboard'
+            )
 
-        # Limit check before processing
-        current_devices = HardwareDevice.objects.filter(owner=request.user).count()
+        current_devices = HardwareDevice.objects.filter(
+            owner=request.user
+        ).count()
+
         if current_devices >= user_sub.max_devices:
+
             from django.contrib import messages
-            messages.error(request, f"Device limit reached ({user_sub.max_devices}). Please upgrade your subscription to add more devices.")
-            return redirect('subscriptions')
 
-        # Get the device ID and PIN from the form
-        device_id = request.POST.get('device_id')
-        secret_pin = request.POST.get('secret_pin')
+            messages.error(
+                request,
+                (
+                    f"Device limit reached "
+                    f"({user_sub.max_devices}). "
+                    f"Please upgrade your subscription "
+                    f"to add more devices."
+                ),
+            )
 
-        if device_id and secret_pin:
-            # Default to active when pairing for a more efficient user experience
-            is_active = request.POST.get('is_active', 'on') == 'on'
+            return redirect(
+                'subscriptions'
+            )
 
-            try:
-                # Try to find an existing device by ID
-                device = HardwareDevice.objects.get(device_id=device_id)
+        device_id = (
+            request.POST.get(
+                'device_id'
+            )
+            or ''
+        ).strip()
 
-                # If it exists, verify PIN
-                if device.secret_pin != secret_pin:
-                    return render(request, 'dashboard/add_device.html', {'error': 'Invalid Device ID or Device Password.'})
+        secret_pin = (
+            request.POST.get(
+                'secret_pin'
+            )
+            or ''
+        ).strip()
 
-                # Check if it's already claimed
-                if device.owner is not None and device.owner != request.user:
-                    return render(request, 'dashboard/add_device.html', {'error': 'This device is already claimed by another user.'})
+        if not device_id or not secret_pin:
 
-                # Claim the device and set active state
-                device.owner = request.user
-                device.is_active = is_active
-                device.save()
+            return render(
+                request,
+                'dashboard/add_device.html',
+                {
+                    'error': (
+                        'Please enter both Device ID '
+                        'and Secret PIN.'
+                    )
+                },
+            )
 
-                return redirect('dashboard')
+        is_active = (
+            request.POST.get(
+                'is_active',
+                'on',
+            )
+            == 'on'
+        )
 
-            except HardwareDevice.DoesNotExist:
-                # If device does not exist, create and claim it for the user
-                device = HardwareDevice.objects.create(
-                    device_id=device_id,
-                    secret_pin=secret_pin,
-                    owner=request.user,
-                    is_active=is_active
+        try:
+
+            device = HardwareDevice.objects.get(
+                device_id=device_id
+            )
+
+            if not device.check_secret_pin(
+                secret_pin
+            ):
+
+                return render(
+                    request,
+                    'dashboard/add_device.html',
+                    {
+                        'error': (
+                            'Invalid Device ID or '
+                            'Device Password.'
+                        )
+                    },
                 )
-                return redirect('dashboard')
-        else:
-            return render(request, 'dashboard/add_device.html', {'error': 'Please enter both Device ID and Secret PIN.'})
 
-    return render(request, 'dashboard/add_device.html')
+            if device.upgrade_legacy_secret_pin(
+                secret_pin
+            ):
+
+                device.save(
+                    update_fields=[
+                        'secret_pin'
+                    ]
+                )
+
+            if device.owner is not None:
+
+                if device.owner != request.user:
+
+                    return render(
+                        request,
+                        'dashboard/add_device.html',
+                        {
+                            'error': (
+                                'This device is already claimed '
+                                'by another user.'
+                            )
+                        },
+                    )
+
+            device.owner = request.user
+            device.is_active = is_active
+
+            device.save(
+                update_fields=[
+                    'owner',
+                    'is_active',
+                ]
+            )
+
+            return redirect(
+                'dashboard'
+            )
+
+        except HardwareDevice.DoesNotExist:
+
+            device = HardwareDevice(
+                device_id=device_id,
+                owner=request.user,
+                is_active=is_active,
+            )
+
+            device.set_secret_pin(
+                secret_pin
+            )
+
+            device.save()
+
+            return redirect(
+                'dashboard'
+            )
+
+    return render(
+        request,
+        'dashboard/add_device.html'
+    )
 
 def logout_view(request):
     logout(request)
@@ -595,7 +809,7 @@ def ml_analyze(request):
                     
                     # Add R^2 value within the plot
                     bbox_props = dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8)
-                    ax3.text(0.05, 0.95, f"RÂ² = {r2:.4f}", transform=ax3.transAxes, fontsize=10,
+                    ax3.text(0.05, 0.95, f"RÃ‚Â² = {r2:.4f}", transform=ax3.transAxes, fontsize=10,
                              verticalalignment='top', bbox=bbox_props)
                     
                     ax3.tick_params(labelsize=9)
@@ -816,7 +1030,7 @@ def export_csv_by_date(request):
     response['Content-Disposition'] = f'attachment; filename="PlantLife365_Data_{date_str}.csv"'
     
     writer = csv.writer(response)
-    writer.writerow(['Time', 'Device ID', 'Temperature (Â°C)', 'Humidity (%)', 'Moisture Level (%)', 'Brightness (%)', 'CH4 Gas (%)'])
+    writer.writerow(['Time', 'Device ID', 'Temperature (Ã‚Â°C)', 'Humidity (%)', 'Moisture Level (%)', 'Brightness (%)', 'CH4 Gas (%)'])
     
     for reading in readings:
         writer.writerow([
@@ -986,7 +1200,7 @@ def chatbot_response(request):
                     latest = SensorReading.objects.filter(device_id__in=user_devices).latest('timestamp')
                     sensor_info = (
                         f"Current Sensor Data (as of {latest.timestamp.strftime('%H:%M:%S')}):\n"
-                        f"- Temperature: {latest.temperature}Â°C\n"
+                        f"- Temperature: {latest.temperature}Ã‚Â°C\n"
                         f"- Humidity: {latest.humidity}%\n"
                         f"- Soil Moisture: {latest.water_level}%\n"
                         f"- Light Level: {latest.light}%\n"

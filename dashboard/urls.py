@@ -40,7 +40,6 @@ urlpatterns = [
     path('api/logs/delete_all/', views.delete_all_logs, name='delete_all_logs'),
     path('api/logs/create/', views.create_log, name='create_log'),
     path('upload', views.receive_esp32_data, name='receive_esp32_data'),
-    path('upload_image/', views.upload_image, name='upload_image'),
     path('api/export-csv/', views.export_csv_by_date, name='export_csv_by_date'),
     path('api/daily-stats/', views.daily_sensor_stats_api, name='daily_sensor_stats_api'),
     path('api/chat/', views.chatbot_response, name='chatbot_response'),
