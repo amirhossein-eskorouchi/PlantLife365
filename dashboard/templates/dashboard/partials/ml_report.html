@@ -1,0 +1,195 @@
+<div class="p-2">
+
+  <div class="alert alert-info border-0 shadow-sm">
+    <strong>Exploratory regression analysis.</strong>
+    These results describe predictive performance on the uploaded
+    dataset. They are not agronomic recommendations or deployed
+    forecasting results.
+  </div>
+
+  <div class="row g-3 mb-4">
+
+    <div class="col-md-3">
+      <div class="bg-white border rounded-3 p-3 h-100">
+        <div class="text-muted small text-uppercase fw-bold">
+          Response
+        </div>
+        <div class="fw-bold mt-1">
+          {{ analysis.response }}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="bg-white border rounded-3 p-3 h-100">
+        <div class="text-muted small text-uppercase fw-bold">
+          Usable Rows
+        </div>
+        <div class="fw-bold mt-1">
+          {{ analysis.clean_rows }} / {{ analysis.original_rows }}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="bg-white border rounded-3 p-3 h-100">
+        <div class="text-muted small text-uppercase fw-bold">
+          Train / Test
+        </div>
+        <div class="fw-bold mt-1">
+          {{ analysis.train_rows }} / {{ analysis.test_rows }}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="bg-white border rounded-3 p-3 h-100">
+        <div class="text-muted small text-uppercase fw-bold">
+          Random Seed
+        </div>
+        <div class="fw-bold mt-1">
+          {{ analysis.random_seed }}
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="mb-4">
+
+    <div class="text-muted small text-uppercase fw-bold mb-2">
+      Selected Features
+    </div>
+
+    {% for feature in analysis.features %}
+      <span class="badge bg-secondary me-1 mb-1">
+        {{ feature }}
+      </span>
+    {% endfor %}
+
+  </div>
+
+  {% for result in analysis.results %}
+
+    <div class="card border-0 shadow-sm mb-4">
+
+      <div class="card-header bg-dark text-white py-3">
+        <strong>{{ result.name }}</strong>
+      </div>
+
+      <div class="card-body">
+
+        {% if result.error %}
+
+          <div class="alert alert-danger mb-0">
+            {{ result.error }}
+          </div>
+
+        {% else %}
+
+          <div class="row g-3 mb-4">
+
+            <div class="col-md-4">
+              <div class="border rounded-3 p-3">
+                <div class="small text-muted text-uppercase fw-bold">
+                  MAE
+                </div>
+                <div class="fs-5 fw-bold">
+                  {{ result.mae|floatformat:4 }}
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <div class="border rounded-3 p-3">
+                <div class="small text-muted text-uppercase fw-bold">
+                  RMSE
+                </div>
+                <div class="fs-5 fw-bold">
+                  {{ result.rmse|floatformat:4 }}
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <div class="border rounded-3 p-3">
+                <div class="small text-muted text-uppercase fw-bold">
+                  R-squared
+                </div>
+                <div class="fs-5 fw-bold">
+                  {{ result.r2|floatformat:4 }}
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {% if result.plot_b64 %}
+
+            <div class="text-center mb-4">
+
+              <img
+                src="data:image/png;base64,{{ result.plot_b64 }}"
+                alt="{{ result.name }} actual versus predicted plot"
+                class="img-fluid rounded border"
+                style="max-height: 480px;"
+              >
+
+            </div>
+
+          {% endif %}
+
+          {% if result.feature_scores %}
+
+            <h6 class="fw-bold mt-4">
+              Model Feature Scores
+            </h6>
+
+            <p class="small text-muted">
+              These are model-specific descriptive quantities and
+              should not be interpreted as causal effects.
+            </p>
+
+            <div class="table-responsive">
+
+              <table class="table table-sm align-middle">
+
+                <thead>
+                  <tr>
+                    <th>Feature</th>
+                    <th>Quantity</th>
+                    <th class="text-end">Value</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+
+                  {% for score in result.feature_scores %}
+
+                    <tr>
+                      <td>{{ score.feature }}</td>
+                      <td>{{ score.label }}</td>
+                      <td class="text-end">
+                        {{ score.value|floatformat:5 }}
+                      </td>
+                    </tr>
+
+                  {% endfor %}
+
+                </tbody>
+
+              </table>
+
+            </div>
+
+          {% endif %}
+
+        {% endif %}
+
+      </div>
+
+    </div>
+
+  {% endfor %}
+
+</div>

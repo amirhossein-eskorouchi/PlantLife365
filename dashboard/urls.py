@@ -30,7 +30,6 @@ urlpatterns = [
     path('ml-tool/', views.ml_tool, name='ml_tool'),
     path('pretrained-model/', views.pretrained_model, name='pretrained_model'),
     path('ml_analyze/', views.ml_analyze, name='ml_analyze'),
-    path('ml_custom_code/', views.ml_custom_code, name='ml_custom_code'),
     path('api/data/', views.sensor_api, name='sensor_api'),
     path('api/sensor-history/', views.sensor_history_api, name='sensor_history_api'),
     path('api/logs/', views.logs_api, name='logs_api'),

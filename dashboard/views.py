@@ -1,3 +1,11 @@
+from .assistant_service import (
+    AssistantServiceError,
+    generate_assistant_reply,
+)
+from .ml_services import (
+    MLServiceError,
+    run_regression_analysis,
+)
 from .data_services import (
     get_daily_statistics,
     get_history,
@@ -40,26 +48,6 @@ import datetime
 import uuid
 import logging
 import base64
-
-# ML Imports (Top-level)
-try:
-    import pandas as pd
-    import numpy as np
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    from matplotlib.figure import Figure
-    import seaborn as sns
-    from sklearn.model_selection import train_test_split
-    from sklearn.linear_model import LinearRegression
-    from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-    from sklearn.svm import SVR
-    from sklearn.neighbors import KNeighborsRegressor
-    from sklearn.metrics import mean_squared_error, r2_score
-    from sklearn.preprocessing import StandardScaler
-    HAS_ML_LIBRARIES = True
-except ImportError:
-    HAS_ML_LIBRARIES = False
 
 logger = logging.getLogger(__name__)
 
@@ -604,261 +592,127 @@ def ml_tool(request):
 
 
 @login_required(login_url='login')
+@require_POST
 def ml_analyze(request):
-    """Receive uploaded dataset and options, run basic regression models and return a small HTML report.
     """
-    if request.method != 'POST':
-        return JsonResponse({'error': 'POST required'}, status=405)
+    Run bounded exploratory regression analysis on one uploaded
+    CSV/Excel dataset.
+    """
 
-    # Check subscription tier
-    sub, _ = UserSubscription.objects.get_or_create(user=request.user)
-    if sub.tier == 'STD':
-        return JsonResponse({'error': 'Subscription upgrade required to use ML tools.'}, status=403)
+    subscription, _ = UserSubscription.objects.get_or_create(
+        user=request.user
+    )
 
-    if not HAS_ML_LIBRARIES:
-        return JsonResponse({
-            'error': 'Required packages missing (pandas, scikit-learn, etc.)',
-            'details': 'Contact administrator to install ML dependencies.'
-        }, status=500)
+    if subscription.tier == 'STD':
 
-    if 'datafile' not in request.FILES:
-        return JsonResponse({'error': 'No datafile uploaded'}, status=400)
+        return JsonResponse(
+            {
+                'error': (
+                    'Researcher or Premium access is required '
+                    'for exploratory ML analytics.'
+                )
+            },
+            status=403,
+        )
 
-    f = request.FILES['datafile']
-    name = f.name.lower()
+    upload = request.FILES.get(
+        'datafile'
+    )
+
+    if upload is None:
+
+        return JsonResponse(
+            {
+                'error': (
+                    'No data file was uploaded.'
+                )
+            },
+            status=400,
+        )
+
+    options_raw = request.POST.get(
+        'options',
+        '{}',
+    )
+
     try:
-        if name.endswith('.csv'):
-            df = pd.read_csv(f)
-        else:
-            df = pd.read_excel(f)
-    except Exception as e:
-        return JsonResponse({'error': 'Failed to read uploaded file', 'details': str(e)}, status=400)
+        options = json.loads(
+            options_raw
+        )
 
-    options_raw = request.POST.get('options', '{}')
+    except json.JSONDecodeError:
+
+        return JsonResponse(
+            {
+                'error': (
+                    'Analysis options must be valid JSON.'
+                )
+            },
+            status=400,
+        )
+
     try:
-        opts = json.loads(options_raw)
+
+        analysis = run_regression_analysis(
+            upload,
+            options,
+        )
+
+    except MLServiceError as exc:
+
+        return JsonResponse(
+            {
+                'error': str(exc)
+            },
+            status=400,
+        )
+
     except Exception:
-        opts = {}
 
-    response_col = opts.get('response')
-    features = opts.get('features', [])
-    train_pct = int(opts.get('train_pct', 80))
-    random_seed = int(opts.get('random_seed', 42))
-    models_to_run = opts.get('models', [])
+        logger.exception(
+            'Unexpected ML-analysis failure'
+        )
 
-    if not response_col or not features:
-        return JsonResponse({'error': 'Response and features are required in options'}, status=400)
+        return JsonResponse(
+            {
+                'error': (
+                    'The analysis could not be completed.'
+                )
+            },
+            status=500,
+        )
 
-    # Filter numeric values and drop NaNs
-    try:
-        relevant_cols = [response_col] + features
-        missing = [c for c in relevant_cols if c not in df.columns]
-        if missing:
-            return JsonResponse({'error': 'Missing columns in datafile', 'missing': missing}, status=400)
+    report_html = render_to_string(
+        'dashboard/partials/ml_report.html',
+        {
+            'analysis': analysis
+        },
+        request=request,
+    )
 
-        sub = df[relevant_cols].copy()
-        for c in sub.columns:
-            sub[c] = pd.to_numeric(sub[c], errors='coerce')
-        sub = sub.dropna()
-        
-        if sub.empty:
-            return JsonResponse({'error': 'No usable numeric data found after cleaning.'}, status=400)
-    except Exception as e:
-        return JsonResponse({'error': 'Data preprocessing failed', 'details': str(e)}, status=400)
-
-    X = sub[features].values
-    y = sub[response_col].values
-    test_size = 1 - (train_pct / 100.0)
-    
-    try:
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_seed)
-        
-        # Scaling Features (Crucial for SVR, KNN, and Linear models)
-        scaler = StandardScaler()
-        X_train = scaler.fit_transform(X_train)
-        X_test = scaler.transform(X_test)
-        
-    except Exception as e:
-        return JsonResponse({'error': 'Train/test split failed', 'details': str(e)}, status=400)
-
-
-    results = []
-    
-    for m_key in models_to_run:
-        for i, feat_name in enumerate(features):
-            try:
-                if m_key == 'linear':
-                    model = LinearRegression()
-                    display_name = 'Linear Regression'
-                elif m_key == 'random_forest':
-                    model = RandomForestRegressor(n_estimators=100, random_state=random_seed)
-                    display_name = 'Random Forest'
-                elif m_key == 'gbm':
-                    model = GradientBoostingRegressor(n_estimators=100, random_state=random_seed)
-                    display_name = 'Gradient Boosting'
-                elif m_key == 'svr':
-                    model = SVR()
-                    display_name = 'Support Vector Regression'
-                elif m_key == 'knn':
-                    model = KNeighborsRegressor()
-                    display_name = 'K-Nearest Neighbors'
-                else:
-                    continue
-
-                # Use only the specified 1D feature
-                X_train_1d = X_train[:, i].reshape(-1, 1)
-                X_test_1d = X_test[:, i].reshape(-1, 1)
-
-                model.fit(X_train_1d, y_train)
-                preds = model.predict(X_test_1d)
-                rmse = mean_squared_error(y_test, preds)
-                r2 = r2_score(y_test, preds)
-                
-                # Capture hyperparameters
-                params = model.get_params()
-                important_keys = ['n_estimators', 'max_depth', 'learning_rate', 'C', 'kernel', 'n_neighbors', 'alpha', 'l1_ratio']
-                clean_params = {k: v for k, v in params.items() if k in important_keys or (v is not None and not isinstance(v, (dict, list)))}
-                
-                # Generate Plots for THIS 1D model
-                fit_link = ""
-                full_name = f"{display_name} ({feat_name})"
-                
-                try:
-                    # Plot: Y-axis vs X-axis with Fitted Line
-                    fig3 = Figure(figsize=(5, 4))
-                    ax3 = fig3.add_subplot(111)
-                    
-                    X_test_unscaled = scaler.inverse_transform(X_test)
-                    x_feat = X_test_unscaled[:, i]
-                    
-                    sort_idx = np.argsort(x_feat)
-                    x_sorted = x_feat[sort_idx]
-                    preds_sorted = preds[sort_idx]
-                    
-                    ax3.scatter(x_feat, y_test, color='#3498db', alpha=0.5, s=30, label='Actual')
-                    ax3.plot(x_sorted, preds_sorted, color='red', linewidth=1.5, label='Fitted Line')
-                    ax3.set_title(f"{response_col} vs {feat_name}\n({display_name})", fontsize=11, fontweight='bold')
-                    ax3.set_xlabel(feat_name, fontsize=10)
-                    ax3.set_ylabel(response_col, fontsize=10)
-                    
-                    # Add R^2 value within the plot
-                    bbox_props = dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8)
-                    ax3.text(0.05, 0.95, f"RÃƒâ€šÃ‚Â² = {r2:.4f}", transform=ax3.transAxes, fontsize=10,
-                             verticalalignment='top', bbox=bbox_props)
-                    
-                    ax3.tick_params(labelsize=9)
-                    ax3.legend(prop={'size': 9})
-                    ax3.grid(True, alpha=0.3)
-                    fig3.tight_layout()
-                    buf3 = io.BytesIO()
-                    fig3.savefig(buf3, format='png', dpi=110)
-                    fit_link = f"data:image/png;base64,{base64.b64encode(buf3.getvalue()).decode()}"
-
-                except Exception as plot_e:
-                    logger.error(f"Plotting failed for {full_name}: {plot_e}")
-
-                results.append({
-                    'model': full_name, 
-                    'rmse': float(rmse), 
-                    'r2': float(r2),
-                    'params': clean_params,
-                    'fit_plot': fit_link,
-                    'feature': feat_name,
-                    'preds': preds.tolist()
-                })
-
-            except Exception as e:
-                results.append({'model': f"{m_key} ({feat_name})", 'error': str(e)})
-
-    # Sort results by R^2 descending (best to worst), with errored outcomes at the bottom
-    results.sort(key=lambda x: (0 if 'error' in x else 1, x.get('r2', -float('inf'))), reverse=True)
-
-    valid_results = [r for r in results if 'error' not in r]
-
-    # --- Stats table rows (all results including errors) ---
-    stats_rows = ""
-    for i, r in enumerate(results):
-        bg = "#f9fafb" if i % 2 == 0 else "#ffffff"
-        if 'error' in r:
-            stats_rows += f"<tr style='background:{bg}'><td style='padding:8px 10px;font-weight:600;border:1px solid #e5e7eb;'>{r['model']}</td><td colspan='3' style='color:red;padding:8px 10px;border:1px solid #e5e7eb;'>{r['error']}</td></tr>"
-        else:
-            param_str = " &nbsp;|&nbsp; ".join([f"<b>{k}</b>={v}" for k, v in list(r['params'].items())[:4]])
-            stats_rows += f"""<tr style='background:{bg}'>
-                <td style='padding:8px 10px;font-weight:600;border:1px solid #e5e7eb;font-size:13px;'>{r['model']}</td>
-                <td style='padding:8px 10px;font-weight:700;color:#16a34a;border:1px solid #e5e7eb;font-size:14px;'>{r['rmse']:.4f}</td>
-                <td style='padding:8px 10px;font-weight:700;color:#2563eb;border:1px solid #e5e7eb;font-size:14px;'>{r['r2']:.4f}</td>
-                <td style='padding:8px 10px;font-size:11px;color:#555;border:1px solid #e5e7eb;'>{param_str}</td>
-            </tr>"""
-
-    sh = "font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#1e293b;background:#e2e8f0;padding:7px 12px;margin-bottom:10px;border-radius:3px;"
-    
-    plots_html = ""
-    if valid_results:
-        for feat_name in features:
-            feat_results = [r for r in valid_results if r['feature'] == feat_name]
-            if not feat_results:
-                continue
-                
-            n_models = max(len(feat_results), 1)
-            plot_w_pct = int(100 / n_models)
-            
-            fit_cells = "".join([
-                f"<td style='width:{plot_w_pct}%;text-align:center;padding:6px;vertical-align:top;'>"
-                f"<img src='{r['fit_plot']}' style='width:100%;display:block;border-radius:4px;border:1px solid #e2e8f0;'/>"
-                f"</td>"
-                for r in feat_results
-            ])
-            
-            plots_html += f"""
-            <div style='margin-bottom:24px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 16px; background: #f8fafc;'>
-                <div style='font-size:14px;font-weight:700;margin-bottom:14px;color:#0f172a; border-bottom: 2px solid #27ae60; padding-bottom: 6px;'>
-                    <span style='color:#27ae60;'>&#9632;</span> Analysis for Feature: {feat_name}
-                </div>
-                <div style='margin-bottom:18px'>
-                    <div style='{sh}'>{response_col} vs {feat_name} [Fitted Line]</div>
-                    <table style='width:100%;border-collapse:collapse;table-layout:fixed'><tr>{fit_cells}</tr></table>
-                </div>
-            </div>
-            """
-
-    report_html = f"""
-    <div style='padding:22px 26px;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif;width:100%;box-sizing:border-box;font-size:14px;line-height:1.6;'>
-
-      <!-- Header Banner -->
-      <div style='background:linear-gradient(135deg,#1a3c2e 0%,#27ae60 100%);color:#fff;padding:16px 20px;border-radius:6px;margin-bottom:20px;'>
-        <div style='font-size:20px;font-weight:700;letter-spacing:0.3px;'>PlantLife365 &mdash; ML Analysis Report</div>
-        <div style='font-size:11px;opacity:0.85;margin-top:5px;'>
-            Generated: {datetime.datetime.now().strftime('%B %d, %Y at %H:%M')} &nbsp;&bull;&nbsp; Random Seed: {random_seed} &nbsp;&bull;&nbsp; All features standard scaled
-        </div>
-      </div>
-
-      <!-- Performance Section -->
-      <div style='margin-bottom:20px;'>
-        <div style='font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#fff;background:#1e293b;padding:7px 12px;border-radius:3px;margin-bottom:10px;'>&#9632;&nbsp; Model Performance Comparison</div>
-        <table style='width:100%;border-collapse:collapse;font-size:13px;'>
-          <thead>
-            <tr style='background:#1e293b;color:#fff;'>
-              <th style='padding:9px 12px;text-align:left;border:1px solid #334155;'>Model</th>
-              <th style='padding:9px 12px;text-align:left;border:1px solid #334155;'>RMSE &darr;</th>
-              <th style='padding:9px 12px;text-align:left;border:1px solid #334155;'>R&sup2; Score &uarr;</th>
-              <th style='padding:9px 12px;text-align:left;border:1px solid #334155;'>Key Hyperparameters</th>
-            </tr>
-          </thead>
-          <tbody>{stats_rows}</tbody>
-        </table>
-      </div>
-
-      <!-- Plots -->
-      {plots_html}
-
-      <!-- Footer -->
-      <div style='border-top:1px solid #e5e7eb;padding-top:8px;margin-top:8px;font-size:10px;color:#9ca3af;text-align:center;'>
-        PlantLife365 Agriculture Monitoring System &mdash; ML Exploratory Tool
-      </div>
-    </div>
-    """
-
-    return JsonResponse({'report_html': report_html})
+    return JsonResponse(
+        {
+            'status': 'success',
+            'report_html': report_html,
+            'analysis_summary': {
+                'response': analysis[
+                    'response'
+                ],
+                'features': analysis[
+                    'features'
+                ],
+                'clean_rows': analysis[
+                    'clean_rows'
+                ],
+                'train_rows': analysis[
+                    'train_rows'
+                ],
+                'test_rows': analysis[
+                    'test_rows'
+                ],
+            },
+        }
+    )
 
 @login_required(login_url='login')
 def logs_api(request):
@@ -1392,129 +1246,89 @@ def daily_sensor_stats_api(request):
     )
 
 @login_required(login_url='login')
-def ml_custom_code(request):
-    """
-    Disabled in the maintained repository pending an isolated
-    execution design.
-    """
-    return JsonResponse(
-        {
-            'error': (
-                'Custom server-side Python execution is disabled in the '
-                'maintained PlantLife365 repository.'
-            )
-        },
-        status=403,
-    )
-
-
-import urllib.request
-import urllib.error
-
-@csrf_exempt
+@require_POST
 def chatbot_response(request):
     """
-    Receives a POST request with {'message': 'user message text'} 
-    and forwards it to the local Ollama API, enriched with real-time farm data and project knowledge.
+    Send one authenticated question to the configured local
+    PlantLife365 assistant service.
     """
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            user_msg = data.get('message', '')
-            
-            if not user_msg:
-                return JsonResponse({'error': 'Message is required'}, status=400)
 
-            # --- Context Enrichment ---
-            # 1. General Project Knowledge (Fixed Knowledge Base)
-            project_kb = (
-                "Knowledge Base: PlantLife365 is an agriculture monitoring system. "
-                "Features include: \n"
-                "- A Dashboard showing real-time sensor metrics and a live video feed from ESP32 cameras.\n"
-                "- Device Management for pairing and unpairing hardware using unique IDs and secret PINs.\n"
-                "- An ML Tool for uploaded tabular data and regression-based exploratory analysis.\n"
-                "- Data Exporting to CSV by specific dates.\n"
-                "- System Logs for tracking alerts (INFO, WARNING, CRITICAL).\n"
-                "Architecture: It uses a Django backend, SQLite database, and ESP32 edge devices running MicroPython."
-            )
+    try:
+        payload = json.loads(
+            request.body
+        )
 
-            context = f"You are the PlantLife365 AI Assistant. {project_kb} "
-            
-            if request.user.is_authenticated:
-                user_devices = HardwareDevice.objects.filter(owner=request.user, is_active=True).values_list('device_id', flat=True)
-                
-                # 2. Fetch Latest Sensor Data
-                sensor_info = "No real-time sensor data available."
-                try:
-                    latest = SensorReading.objects.filter(device_id__in=user_devices).latest('timestamp')
-                    sensor_info = (
-                        f"Current Sensor Data (as of {latest.timestamp.strftime('%H:%M:%S')}):\n"
-                        f"- Temperature: {latest.temperature}Ãƒâ€šÃ‚Â°C\n"
-                        f"- Humidity: {latest.humidity}%\n"
-                        f"- Soil Moisture: {latest.water_level}%\n"
-                        f"- Light Level: {latest.light}%\n"
-                        f"- Gas/Air Quality: {latest.gas}%"
-                    )
-                except SensorReading.DoesNotExist:
-                    pass
-                
-                # 3. Fetch Recent Logs
-                logs = SystemLog.objects.filter(owner=request.user).order_by('-timestamp')[:5]
-                log_info = "Recent System Logs:\n" + "\n".join([f"- [{l.level}] {l.timestamp.strftime('%H:%M')}: {l.message}" for l in logs])
-                
-                # 4. Fetch User Info
-                try:
-                    sub = request.user.subscription
-                    sub_info = f"Subscription Tier: {sub.get_tier_display()} (Max Devices: {sub.max_devices})"
-                except:
-                    sub_info = "Subscription: Standard"
-                
-                device_count = user_devices.count()
-                
-                context += (
-                    f"\n\nUser Context:\n- Username: {request.user.username}\n- {sub_info}\n- Active Devices: {device_count}\n\n"
-                    f"Here is the real-time status of the user's farm:\n{sensor_info}\n\n"
-                    f"{log_info}\n\n"
-                    "Use this information to answer the user's question precisely. "
+    except json.JSONDecodeError:
+
+        return JsonResponse(
+            {
+                'error': (
+                    'Invalid JSON payload.'
                 )
-            else:
-                context += "The user is not logged in, so you don't have access to their specific device data."
+            },
+            status=400,
+        )
 
-            full_prompt = f"{context}\nUser Question: {user_msg}\n\nAssistant Response:"
-            # --------------------------
-            
-            # Prepare request to local Ollama instance
-            ollama_url = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
-            payload = {
-                "model": os.environ.get("OLLAMA_MODEL", "phi3"),
-                "prompt": full_prompt,
-                "stream": False
-            }
-            
-            req = urllib.request.Request(
-                ollama_url, 
-                data=json.dumps(payload).encode('utf-8'), 
-                headers={'Content-Type': 'application/json'}
-            )
-            
-            try:
-                with urllib.request.urlopen(req) as response:
-                    ollama_res = json.loads(response.read().decode('utf-8'))
-                    ai_text = ollama_res.get('response', "I couldn't generate a response.")
-                    return JsonResponse({'reply': ai_text})
-            except urllib.error.URLError as e:
-                logger.error(f"Ollama connection error: {e}")
-                return JsonResponse({
-                    'reply': "Error: Could not connect to the local AI. Please make sure Ollama is installed and running (`ollama serve`)."
-                })
-                
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid JSON format'}, status=400)
-        except Exception as e:
-            logger.error(f"Chatbot error: {e}")
-            return JsonResponse({'error': str(e)}, status=500)
-            
-    return JsonResponse({'error': 'Invalid request method'}, status=405)
+    message = str(
+        payload.get(
+            'message',
+            '',
+        )
+    ).strip()
+
+    if not message:
+
+        return JsonResponse(
+            {
+                'error': (
+                    'Message is required.'
+                )
+            },
+            status=400,
+        )
+
+    try:
+
+        reply = generate_assistant_reply(
+            request.user,
+            message,
+        )
+
+    except AssistantServiceError as exc:
+
+        logger.warning(
+            'PlantLife365 assistant unavailable: %s',
+            exc,
+        )
+
+        return JsonResponse(
+            {
+                'error': str(exc)
+            },
+            status=503,
+        )
+
+    except Exception:
+
+        logger.exception(
+            'Unexpected PlantLife365 assistant failure'
+        )
+
+        return JsonResponse(
+            {
+                'error': (
+                    'The local AI assistant could not '
+                    'complete the request.'
+                )
+            },
+            status=500,
+        )
+
+    return JsonResponse(
+        {
+            'reply': reply
+        }
+    )
 
 @login_required(login_url='login')
 def subscriptions_view(request):
@@ -1540,27 +1354,41 @@ def subscriptions_view(request):
 
 @login_required(login_url='login')
 def upgrade_subscription(request, tier):
-    # Mocking stripe checkout for now
-    user_sub, created = UserSubscription.objects.get_or_create(user=request.user)
-    
+    """
+    Preserve the historical subscription-tier UI without presenting
+    it as a completed billing or checkout system.
+    """
+
     from django.contrib import messages
-    if tier == 'PRM':
-        user_sub.tier = 'PRM'
-        user_sub.max_devices = 999
-        user_sub.save()
-        messages.success(request, "Successfully upgraded to Premium Tier!")
-    elif tier == 'RES':
-        user_sub.tier = 'RES'
-        user_sub.max_devices = 2
-        user_sub.save()
-        messages.success(request, "Successfully upgraded to Researcher Tier!")
-    elif tier == 'STD':
-        user_sub.tier = 'STD'
-        user_sub.max_devices = 1
-        user_sub.save()
-        messages.success(request, "Switched to Standard Tier.")
-        
-    return redirect('subscriptions')
+
+    valid_tiers = {
+        'STD',
+        'RES',
+        'PRM',
+    }
+
+    if tier not in valid_tiers:
+
+        messages.error(
+            request,
+            'Unknown subscription tier.'
+        )
+
+        return redirect(
+            'subscriptions'
+        )
+
+    messages.info(
+        request,
+        (
+            'Subscription checkout is a prototype feature '
+            'and is disabled in the maintained repository.'
+        ),
+    )
+
+    return redirect(
+        'subscriptions'
+    )
 
 @login_required(login_url='login')
 def pretrained_model(request):
