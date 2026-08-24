@@ -1,0 +1,976 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+{% block content %}
+<style>
+    /* Compact dashboard styling */
+    .chart-canvas {
+        width: 100% !important;
+        height: 360px !important;
+        max-height: 360px;
+    }
+
+    .sensor-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        display: block;
+    }
+
+    .sensor-label {
+        font-size: .95rem;
+        color: #6c757d;
+        margin-top: .25rem;
+    }
+
+    /* Emergency Alert Styling (Improved Visibility) */
+    @keyframes emergency-pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+        }
+
+        70% {
+            box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+        }
+    }
+
+    .alert-danger {
+        background-color: #fff0f0 !important;
+        border: 2px solid #dc3545 !important;
+        animation: emergency-pulse 1.5s infinite;
+    }
+
+    .alert-danger .sensor-label,
+    .alert-danger .stat-row span,
+    .alert-danger .text-muted,
+    .alert-danger i.fas,
+    .alert-danger .stat-icon {
+        color: #dc3545 !important;
+        font-weight: bold;
+    }
+
+    .alert-danger .sensor-value,
+    .alert-danger .sensor-value span {
+        color: #b02a37 !important;
+        font-weight: 800;
+    }
+
+    .card-header .nav-tabs {
+        margin-left: -0.5rem;
+    }
+
+    .card {
+        border-radius: .75rem;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+    }
+
+    .card-body {
+        padding: 1.25rem;
+    }
+
+    .stat-icon {
+        font-size: 1.45rem;
+        opacity: .95;
+    }
+
+    .sensors .col-6 {
+        padding-top: .75rem;
+        padding-bottom: .75rem;
+    }
+
+    .sensors-top .d-flex {
+        gap: 1rem;
+    }
+
+    .sensors-top .sensor-card {
+        flex: 1 1 14%;
+        min-width: 70px;
+        max-width: 18%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 0.5rem;
+    }
+
+    .sensors-top .sensor-card .sensor-label {
+        font-size: .82rem;
+    }
+
+    .sensors-top .sensor-card .sensor-value {
+        font-size: 1.0rem;
+    }
+
+    .stat-row {
+        font-size: .9rem;
+        color: #6c757d;
+        margin-top: .35rem;
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+    }
+
+    @media (max-width: 1199px) {
+        .chart-canvas {
+            height: 320px !important;
+            max-height: 320px;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .chart-canvas {
+            height: 240px !important;
+            max-height: 240px;
+        }
+
+        .sensor-value {
+            font-size: 1.05rem;
+        }
+
+        .card-body {
+            padding: .9rem;
+        }
+    }
+
+    .sensor-card {
+        transition: background-color 0.3s, border-color 0.3s;
+    }
+
+    .sensor-card.alert-danger {
+        background-color: #fff3f3 !important;
+        border-color: #dc3545 !important;
+    }
+
+    .status-dot {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-left: .5rem;
+        vertical-align: middle;
+        box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.03);
+    }
+
+    .status-dot.online {
+        background: #28a745;
+    }
+
+    .status-dot.offline {
+        background: #6c757d;
+    }
+</style>
+
+<!--Camera-->
+<!--<div class="row">
+    <div class="col-lg-8 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-video me-2"></i>Live Feed</span>
+                <span id="cam-status-badge" class="badge bg-danger">OFFLINE</span>
+            </div>
+            <div class="card-body p-0 text-center bg-black d-flex align-items-center justify-content-center">
+                <img id="video-stream" src="/media/live_feed.jpg"
+                    onerror="this.onerror=null; this.src='{% static 'dashboard/no_signal.jpg' %}';" class="img-fluid"
+                    style="max-height: 500px; width: 100%; object-fit: cover;" alt="Live Feed">
+            </div>
+        </div>
+    </div>-->
+
+<div class="container-fluid">
+    <!-- Sensors row: five evenly spaced sensor summary cards -->
+    <div class="sensors-top mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h5 class="mb-0">Live Sensors</h5>
+            {% if request.user.subscription.tier != 'STD' %}
+            <div class="d-flex align-items-center gap-2">
+                <span class="small text-muted fw-bold text-uppercase" style="font-size: 0.7rem;">Forecasted Trends with
+                    Machine Learning:</span>
+                <select id="comparison-mode" class="form-select form-select-sm"
+                    style="width: auto; font-size: 0.75rem; border-radius: 20px; padding-left: 15px; padding-right: 30px;">
+                    <!-- <option value="predicted">Compare: AI Pattern Forecasting</option> -->
+                    <option value="linear">Linear Regression</option>
+                    <option value="random_forest">Random Forest</option>
+                    <option value="gbm">Gradient Boosting</option>
+                </select>
+            </div>
+            {% endif %}
+        </div>
+        <div class="d-flex gap-3 align-items-stretch flex-wrap">
+            <div id="temp-card" class="sensor-card card text-center p-3 flex-fill">
+                <div class="stat-icon" style="color: #e67e22;"><i class="fas fa-temperature-high"></i></div>
+                <div class="sensor-label">Temperature</div>
+                <div class="sensor-value"><span id="temp-display">--</span><small class="text-muted"> °C</small></div>
+                {% if request.user.subscription.tier != 'STD' %}
+                <div class="small text-muted mb-2" id="temp-comparison-label">Loading... <strong
+                        id="temp-predicted-display">--</strong> °C</div>
+                {% endif %}
+                <div class="stat-row" id="temp-stats">
+                    <span>Low: <strong id="temp-min">--</strong></span>
+                    <span>Avg: <strong id="temp-avg">--</strong></span>
+                    <span>High: <strong id="temp-max">--</strong></span>
+                </div>
+            </div>
+            <div id="humid-card" class="sensor-card card text-center p-3 flex-fill">
+                <div class="stat-icon" style="color: #27ae60;"><i class="fas fa-tint"></i></div>
+                <div class="sensor-label">Humidity</div>
+                <div class="sensor-value"><span id="humid-display">--</span><small class="text-muted"> %</small></div>
+                {% if request.user.subscription.tier != 'STD' %}
+                <div class="small text-muted mb-2" id="humid-comparison-label">Loading... <strong
+                        id="humid-predicted-display">--</strong> %</div>
+                {% endif %}
+                <div class="stat-row" id="humid-stats">
+                    <span>Low: <strong id="humid-min">--</strong></span>
+                    <span>Avg: <strong id="humid-avg">--</strong></span>
+                    <span>High: <strong id="humid-max">--</strong></span>
+                </div>
+            </div>
+            <div id="water-card" class="sensor-card card text-center p-3 flex-fill">
+                <div class="stat-icon" style="color: #2980b9;"><i class="fas fa-water"></i></div>
+                <div class="sensor-label">Moisture Level</div>
+                <div class="sensor-value"><span id="water-display">--</span><small class="text-muted"> %</small></div>
+                {% if request.user.subscription.tier != 'STD' %}
+                <div class="small text-muted mb-2" id="water-comparison-label">Loading... <strong
+                        id="water-predicted-display">--</strong> %</div>
+                {% endif %}
+                <div class="stat-row" id="water-stats">
+                    <span>Low: <strong id="water-min">--</strong></span>
+                    <span>Avg: <strong id="water-avg">--</strong></span>
+                    <span>High: <strong id="water-max">--</strong></span>
+                </div>
+            </div>
+            <div id="light-card" class="sensor-card card text-center p-3 flex-fill">
+                <div class="stat-icon" style="color: #f1c40f;"><i class="fas fa-sun"></i></div>
+                <div class="sensor-label">Brightness</div>
+                <div class="sensor-value"><span id="light-display">--</span><small class="text-muted"> %</small></div>
+                {% if request.user.subscription.tier != 'STD' %}
+                <div class="small text-muted mb-2" id="light-comparison-label">Loading... <strong
+                        id="light-predicted-display">--</strong> %</div>
+                {% endif %}
+                <div class="stat-row" id="light-stats">
+                    <span>Low: <strong id="light-min">--</strong></span>
+                    <span>Avg: <strong id="light-avg">--</strong></span>
+                    <span>High: <strong id="light-max">--</strong></span>
+                </div>
+            </div>
+            <div id="gas-card" class="sensor-card card text-center p-3 flex-fill">
+                <div class="stat-icon" style="color: #8e44ad;"><i class="fas fa-smog"></i></div>
+                <div class="sensor-label">CH4 Gas</div>
+                <div class="sensor-value"><span id="gas-display">--</span><small class="text-muted"> %</small></div>
+                {% if request.user.subscription.tier != 'STD' %}
+                <div class="small text-muted mb-2" id="gas-comparison-label">Loading... <strong
+                        id="gas-predicted-display">--</strong> %</div>
+                {% endif %}
+                <div class="stat-row" id="gas-stats">
+                    <span>Low: <strong id="gas-min">--</strong></span>
+                    <span>Avg: <strong id="gas-avg">--</strong></span>
+                    <span>High: <strong id="gas-max">--</strong></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Logs Component (Standalone) -->
+    <!--<div class="row mb-4">
+        <div class="col-12">
+            <div class="card h-100">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-list me-2"></i>System Log</span>
+                </div>
+                <div class="card-body p-0"
+                    style="max-height: 200px; overflow-y: auto; background-color: #2b2b2b; color: #a9b7c6;">
+                    <ul id="system-log-list" class="list-group list-group-flush"
+                        style="font-family: monospace; font-size: 0.85rem;">
+                        <li class="list-group-item"
+                            style="background-color: transparent; color: inherit; border-color: #444;">[INFO] Waiting
+                            for connection...</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>-->
+
+    <!-- Graphs (bottom) -->
+    <div class="card">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="mb-0">Sensor Trends</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <select id="time-period-selector" class="form-select form-select-sm" style="width: auto;">
+                        <option value="live">Live</option>
+                        <option value="1h">Past Hour</option>
+                        <option value="1d">Past Day</option>
+                        <option value="1w">Past Week</option>
+                    </select>
+                    <button id="filter-btn" class="btn btn-sm btn-outline-primary fw-bold" data-bs-toggle="modal"
+                        data-bs-target="#thresholdModal" style="white-space: nowrap;">
+                        <i class="fas fa-filter me-1"></i> Filter
+                    </button>
+                    {% if request.user.subscription.tier != 'STD' %}
+                    <a href="{% url 'ml_tool' %}" class="btn btn-sm btn-outline-success fw-bold"
+                        style="letter-spacing: 0.5px; white-space: nowrap;"><i class="fas fa-flask me-1"></i> Machine
+                        Learning
+                        Tool</a>
+
+                    {% endif %}
+                    <div class="input-group input-group-sm">
+                        <input type="date" id="export-date" class="form-control" title="Select date to export">
+                        <button id="export-csv" class="btn btn-outline-secondary">Export CSV</button>
+                    </div>
+                </div>
+            </div>
+            <ul class="nav nav-tabs card-header-tabs" id="chartTabs" role="tablist">
+                <li class="nav-item"><a class="nav-link active" id="temp-tab" data-bs-toggle="tab" href="#temp-pane"
+                        role="tab">Temperature</a></li>
+                <li class="nav-item"><a class="nav-link" id="humid-tab" data-bs-toggle="tab" href="#humid-pane"
+                        role="tab">Humidity</a></li>
+                <li class="nav-item"><a class="nav-link" id="water-tab" data-bs-toggle="tab" href="#water-pane"
+                        role="tab">Moisture Level</a></li>
+                <li class="nav-item"><a class="nav-link" id="light-tab" data-bs-toggle="tab" href="#light-pane"
+                        role="tab">Brightness</a></li>
+                <li class="nav-item"><a class="nav-link" id="gas-tab" data-bs-toggle="tab" href="#gas-pane"
+                        role="tab">CH4 Gas</a></li>
+            </ul>
+        </div>
+        <div class="card-body tab-content">
+            <div class="tab-pane fade show active" id="temp-pane" role="tabpanel"><canvas id="tempChart"
+                    class="chart-canvas"></canvas></div>
+            <div class="tab-pane fade" id="humid-pane" role="tabpanel"><canvas id="humidChart"
+                    class="chart-canvas"></canvas></div>
+            <div class="tab-pane fade" id="water-pane" role="tabpanel"><canvas id="waterChart"
+                    class="chart-canvas"></canvas></div>
+            <div class="tab-pane fade" id="light-pane" role="tabpanel"><canvas id="lightChart"
+                    class="chart-canvas"></canvas></div>
+            <div class="tab-pane fade" id="gas-pane" role="tabpanel"><canvas id="gasChart"
+                    class="chart-canvas"></canvas></div>
+        </div>
+    </div>
+
+    <!-- Threshold Settings Modal -->
+    <div class="modal fade" id="thresholdModal" tabindex="-1" aria-labelledby="thresholdModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="thresholdModalLabel"><i class="fas fa-sliders-h me-2"></i>Alert
+                        Thresholds</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="threshold-form">
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label">Min Temp (°C)</label>
+                                <input type="number" class="form-control" id="thresh-temp-min" step="0.1">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Max Temp (°C)</label>
+                                <input type="number" class="form-control" id="thresh-temp-max" step="0.1">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label">Min Humidity (%)</label>
+                                <input type="number" class="form-control" id="thresh-humid-min" step="0.1">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Max Humidity (%)</label>
+                                <input type="number" class="form-control" id="thresh-humid-max" step="0.1">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label">Min Moisture Level (%)</label>
+                                <input type="number" class="form-control" id="thresh-water-min" step="0.1">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Max CH4 Gas (%)</label>
+                                <input type="number" class="form-control" id="thresh-gas-max" step="0.1">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="save-thresholds-btn">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Toast Container for Emergency Alerts -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1055;">
+        <div id="emergencyToast" class="toast align-items-center text-white bg-danger border-0" role="alert"
+            aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body fw-bold">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <span id="emergencyToastMessage">Emergency Alert!</span>
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                    aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+    {% endblock %}
+
+    {% block scripts %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Chart.js setup for all time series
+        function createChart(ctx, label, color, yLabel, yOptions = null, isMulti = false) {
+            const yAxisScale = Object.assign({ title: { display: true, text: yLabel }, beginAtZero: false }, yOptions || {});
+
+            const datasets = [{
+                label: label,
+                data: [],
+                borderColor: color[0],
+                backgroundColor: color[1],
+                fill: true,
+                tension: 0.4
+            }];
+
+            if (isMulti) {
+                datasets.push({
+                    label: 'Predicted',
+                    data: [],
+                    borderColor: 'rgba(52, 152, 219, 0.8)',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                    borderDash: [5, 5],
+                    fill: false,
+                    tension: 0.4
+                });
+            }
+
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: true, position: 'bottom' },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    elements: { point: { radius: 0, hitRadius: 10, hoverRadius: 4 } },
+                    scales: {
+                        x: { title: { display: true, text: 'Time' } },
+                        y: yAxisScale
+                    }
+                }
+            });
+        }
+
+        const canPredict = {% if request.user.subscription.tier != 'STD' %}true{% else %} false{% endif %};
+
+        const tempChart = createChart(
+            document.getElementById('tempChart').getContext('2d'),
+            'Actual Temperature (°C)',
+            ['rgba(230, 126, 34, 1)', 'rgba(230, 126, 34, 0.2)'],
+            'Temperature (°C)',
+            null,
+            canPredict // isMulti
+        );
+        const humidChart = createChart(
+            document.getElementById('humidChart').getContext('2d'),
+            'Actual Humidity (%)',
+            ['rgba(39, 174, 96, 1)', 'rgba(39, 174, 96, 0.2)'],
+            'Humidity (%)',
+            { min: 0, max: 100, suggestedMin: 0, suggestedMax: 100 },
+            canPredict // isMulti
+        );
+        const waterChart = createChart(
+            document.getElementById('waterChart').getContext('2d'),
+            'Actual Moisture (%)',
+            ['rgba(41, 128, 185, 1)', 'rgba(41, 128, 185, 0.2)'],
+            'Moisture Level (%)',
+            { min: 0, max: 100, suggestedMin: 0, suggestedMax: 100 },
+            canPredict // isMulti
+        );
+        const lightChart = createChart(
+            document.getElementById('lightChart').getContext('2d'),
+            'Actual Brightness (%)',
+            ['rgba(241, 196, 15, 1)', 'rgba(241, 196, 15, 0.2)'],
+            'Brightness (%)',
+            { min: 0, max: 100, suggestedMin: 0, suggestedMax: 100 },
+            canPredict // isMulti
+        );
+        const gasChart = createChart(
+            document.getElementById('gasChart').getContext('2d'),
+            'Actual CH4 Gas (%)',
+            ['rgba(142, 68, 173, 1)', 'rgba(142, 68, 173, 0.2)'],
+            'CH4 Gas (%)',
+            { min: 0, max: 100, suggestedMin: 0, suggestedMax: 100 },
+            canPredict // isMulti
+        );
+
+        // --- Dynamic Thresholds Setup ---
+        let currentThresholds = {
+            tempMin: 18.0,
+            tempMax: 30.0,
+            humidMin: 40.0,
+            humidMax: 75.0,
+            waterMin: 20.0,
+            gasMax: 5.0
+        };
+
+        // Track last alert time to prevent spam (milliseconds)
+        const ALERT_COOLDOWN = 1800000; // 30 minutes per sensor type
+        let alertCooldowns = { temp: 0, humid: 0, water: 0, light: 0, gas: 0 };
+        let toastCooldowns = { temp: 0, humid: 0, water: 0, light: 0, gas: 0 };
+
+        function showEmergencyToast(message, level, type) {
+            const now = Date.now();
+            if (now - toastCooldowns[type] > 60000) { // 1 min cooldown for toasts
+                toastCooldowns[type] = now;
+                document.getElementById('emergencyToastMessage').innerText = message;
+                const toastEl = document.getElementById('emergencyToast');
+                if (level === 'CRITICAL') {
+                    toastEl.classList.remove('bg-warning', 'text-dark');
+                    toastEl.classList.add('bg-danger', 'text-white');
+                    toastEl.querySelector('.btn-close').classList.add('btn-close-white');
+                } else {
+                    toastEl.classList.remove('bg-danger', 'text-white');
+                    toastEl.classList.add('bg-warning', 'text-dark');
+                    toastEl.querySelector('.btn-close').classList.remove('btn-close-white');
+                }
+                const toast = new bootstrap.Toast(toastEl, { delay: 5000 });
+                toast.show();
+            }
+        }
+
+        function postAlertToBackend(type, level, message) {
+            const now = Date.now();
+            if (now - alertCooldowns[type] > ALERT_COOLDOWN) {
+                alertCooldowns[type] = now;
+                fetch("{% url 'create_log' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ level: level, message: message })
+                }).then(() => {
+                    // Force refresh the alerts list immediately
+                    if (typeof fetchAlerts === 'function') fetchAlerts();
+                }).catch(err => console.error("Error creating alert:", err));
+            }
+        }
+
+        // Initialize Modal Input values on load
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('thresh-temp-min').value = currentThresholds.tempMin;
+            document.getElementById('thresh-temp-max').value = currentThresholds.tempMax;
+            document.getElementById('thresh-humid-min').value = currentThresholds.humidMin;
+            document.getElementById('thresh-humid-max').value = currentThresholds.humidMax;
+            document.getElementById('thresh-water-min').value = currentThresholds.waterMin;
+            document.getElementById('thresh-gas-max').value = currentThresholds.gasMax;
+        });
+
+        // 2. SENSOR LOGIC (Slow Refresh)
+        function updateSensors() {
+            const modeSelector = document.getElementById('comparison-mode');
+            const mode = modeSelector ? modeSelector.value : 'none';
+
+            fetch(`{% url 'sensor_api' %}?model=${mode}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'online') {
+                        const modeLabel = mode === 'predicted' ? (data.predicted_date || 'Predicted') : 'Predicted';
+
+                        // Update UI labels
+                        ['temp', 'humid', 'water', 'light', 'gas'].forEach(s => {
+                            const el = document.getElementById(`${s}-comparison-label`);
+                            if (el) {
+                                const valId = `${s}-predicted-display`;
+                                const currentVal = data[`predicted_${s}`] !== undefined && data[`predicted_${s}`] !== null ? data[`predicted_${s}`] : '--';
+                                el.innerHTML = `${modeLabel}: <strong id="${valId}">${currentVal}</strong> ${s === 'temp' ? '°C' : '%'}`;
+                            }
+                        });
+
+                        document.getElementById('temp-display').innerText = data.temperature;
+                        document.getElementById('humid-display').innerText = data.humidity;
+                        if (document.getElementById('water-display')) {
+                            document.getElementById('water-display').innerText = data.water_level;
+                        }
+                        document.getElementById('light-display').innerText = data.light;
+                        document.getElementById('gas-display').innerText = data.gas;
+
+                        // --- Dynamic Threshold Alerts Logic ---
+                        const tempCard = document.getElementById('temp-card');
+                        if (data.temperature < currentThresholds.tempMin || data.temperature > currentThresholds.tempMax) {
+                            tempCard.classList.add('alert-danger');
+                            let msg = `Temperature out of bounds: ${data.temperature}°C`;
+                            tempCard.setAttribute('title', `Warning: ${msg}`);
+                            postAlertToBackend('temp', 'WARNING', msg);
+                            showEmergencyToast(msg, 'WARNING', 'temp');
+                        } else {
+                            tempCard.classList.remove('alert-danger');
+                            tempCard.removeAttribute('title');
+                        }
+
+                        const humidCard = document.getElementById('humid-card');
+                        if (data.humidity < currentThresholds.humidMin || data.humidity > currentThresholds.humidMax) {
+                            humidCard.classList.add('alert-danger');
+                            let msg = `Humidity out of bounds: ${data.humidity}%`;
+                            humidCard.setAttribute('title', `Warning: ${msg}`);
+                            postAlertToBackend('humid', 'WARNING', msg);
+                            showEmergencyToast(msg, 'WARNING', 'humid');
+                        } else {
+                            humidCard.classList.remove('alert-danger');
+                            humidCard.removeAttribute('title');
+                        }
+
+                        const waterCard = document.getElementById('water-card');
+                        if (data.water_level < currentThresholds.waterMin) {
+                            waterCard.classList.add('alert-danger');
+                            let msg = `Low moisture level: ${data.water_level}%`;
+                            waterCard.setAttribute('title', `Critical: ${msg}`);
+                            postAlertToBackend('water', 'CRITICAL', msg);
+                            showEmergencyToast(msg, 'CRITICAL', 'water');
+                        } else {
+                            waterCard.classList.remove('alert-danger');
+                            waterCard.removeAttribute('title');
+                        }
+
+                        // Light sensor alert removed by request
+
+                        const gasCard = document.getElementById('gas-card');
+                        if (data.gas > currentThresholds.gasMax) {
+                            gasCard.classList.add('alert-danger');
+                            let msg = `Dangerous gas levels: ${data.gas}%`;
+                            gasCard.setAttribute('title', `Critical: ${msg}`);
+                            postAlertToBackend('gas', 'CRITICAL', msg);
+                            showEmergencyToast(msg, 'CRITICAL', 'gas');
+                        } else {
+                            gasCard.classList.remove('alert-danger');
+                            gasCard.removeAttribute('title');
+                        }
+                        // -----------------------------
+
+                        // Update charts only if 'live'
+                        if (document.getElementById('time-period-selector').value === 'live') {
+                            const now = new Date();
+                            const timeLabel = now.toLocaleTimeString();
+
+                            function pushData(chart, value, predictedValue = null) {
+                                let v = parseFloat(value);
+                                if (Number.isNaN(v)) v = null;
+
+                                chart.data.labels.push(timeLabel);
+                                chart.data.datasets[0].data.push(v);
+
+                                // Push predicted value if provided (for Multi-axis charts)
+                                if (chart.data.datasets.length > 1 && predictedValue !== null) {
+                                    let pv = parseFloat(predictedValue);
+                                    if (Number.isNaN(pv)) pv = null;
+                                    chart.data.datasets[1].data.push(pv);
+                                } else if (chart.data.datasets.length > 1) {
+                                    // Keep datasets aligned
+                                    chart.data.datasets[1].data.push(null);
+                                }
+
+                                if (chart.data.labels.length > 20) {
+                                    chart.data.labels.shift();
+                                    chart.data.datasets[0].data.shift();
+                                    if (chart.data.datasets.length > 1) chart.data.datasets[1].data.shift();
+                                }
+                                chart.update();
+                            }
+
+                            pushData(tempChart, data.temperature, data.predicted_temp);
+                            pushData(humidChart, data.humidity, data.predicted_humid);
+                            pushData(waterChart, data.water_level, data.predicted_water);
+                            pushData(lightChart, data.light, data.predicted_light);
+                            pushData(gasChart, data.gas, data.predicted_gas);
+                        }
+
+                        // update system status dot
+                        const statusDot = document.getElementById('nav-status-dot');
+                        const statusText = document.getElementById('nav-status-text');
+                        if (statusDot) {
+                            statusDot.style.backgroundColor = '#008000';
+                            if (statusText) statusText.innerText = 'Online';
+                        }
+                    }
+                    else {
+                        const statusDot = document.getElementById('nav-status-dot');
+                        const statusText = document.getElementById('nav-status-text');
+                        if (statusDot) {
+                            statusDot.style.backgroundColor = '#dc3545';
+                            if (statusText) statusText.innerText = 'Offline';
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.log('Sensor fetch error:', err);
+                    const statusDot = document.getElementById('nav-status-dot');
+                    const statusText = document.getElementById('nav-status-text');
+                    if (statusDot) {
+                        statusDot.style.backgroundColor = '#dc3545';
+                        if (statusText) statusText.innerText = 'Offline';
+                    }
+                });
+
+            // --- Fetch System Logs ---
+            /*
+            fetch("{% url 'logs_api' %}")
+                .then(response => response.json())
+                .then(logData => {
+                    if (logData.status === 'success') {
+                        const logList = document.getElementById('system-log-list');
+                        if (logData.logs.length === 0) {
+                            logList.innerHTML = '<li class="list-group-item" style="background-color: transparent; color: inherit; border-color: #444;">[INFO] System nominal. No recent alerts.</li>';
+                        } else {
+                            logList.innerHTML = '';
+                            logData.logs.forEach(log => {
+                                let color = 'inherit';
+                                if (log.level === 'WARNING') color = '#ffc107';
+                                if (log.level === 'CRITICAL') color = '#dc3545';
+                                
+                                logList.innerHTML += `<li class="list-group-item" style="background-color: transparent; color: ${color}; border-color: #444;">[${log.timestamp}] ${log.level}: ${log.message}</li>`;
+                            });
+                        }
+                    }
+                })
+                .catch(err => console.log('Log fetch error:', err));
+            */
+            // -------------------------
+        }
+
+        // 3. TIMERS
+        setInterval(updateSensors, 1000);
+
+        // Historical Data Fetching
+        document.getElementById('time-period-selector').addEventListener('change', (e) => {
+            const period = e.target.value;
+            if (period !== 'live') {
+                fetch(`/api/sensor-history/?period=${period}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'online' && data.data) {
+                            tempChart.data.labels = []; tempChart.data.datasets[0].data = [];
+                            humidChart.data.labels = []; humidChart.data.datasets[0].data = [];
+                            waterChart.data.labels = []; waterChart.data.datasets[0].data = [];
+                            lightChart.data.labels = []; lightChart.data.datasets[0].data = [];
+                            gasChart.data.labels = []; gasChart.data.datasets[0].data = [];
+
+                            data.data.forEach(r => {
+                                tempChart.data.labels.push(r.time); tempChart.data.datasets[0].data.push(r.t);
+                                humidChart.data.labels.push(r.time); humidChart.data.datasets[0].data.push(r.h);
+                                waterChart.data.labels.push(r.time); waterChart.data.datasets[0].data.push(r.w);
+                                lightChart.data.labels.push(r.time); lightChart.data.datasets[0].data.push(r.l);
+                                gasChart.data.labels.push(r.time); gasChart.data.datasets[0].data.push(r.g);
+                            });
+
+                            tempChart.update(); humidChart.update(); waterChart.update(); lightChart.update(); gasChart.update();
+                        }
+                    });
+            } else {
+                // Clear the charts, let live sensors fill it instantly
+                tempChart.data.labels = []; tempChart.data.datasets[0].data = [];
+                humidChart.data.labels = []; humidChart.data.datasets[0].data = [];
+                waterChart.data.labels = []; waterChart.data.datasets[0].data = [];
+                lightChart.data.labels = []; lightChart.data.datasets[0].data = [];
+                gasChart.data.labels = []; gasChart.data.datasets[0].data = [];
+            }
+        });
+
+        // Set default export date to today
+        document.getElementById('export-date').valueAsDate = new Date();
+
+        // Export data for the selected date as CSV
+        function exportChartsToCSV() {
+            const dateInput = document.getElementById('export-date');
+            const selectedDate = dateInput.value;
+
+            if (!selectedDate) {
+                alert('Please select a date to export.');
+                return;
+            }
+
+            const exportUrl = `/api/export-csv/?date=${selectedDate}`;
+
+            fetch(exportUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(errData => {
+                            throw new Error(errData.error || 'Unknown error occurred while exporting.');
+                        });
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    a.href = url;
+                    a.download = `PlantLife365_Data_${selectedDate}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(url);
+                })
+                .catch(err => {
+                    console.error('CSV export error:', err);
+                    alert('Unable to export CSV: ' + err.message);
+                });
+        }
+
+        document.getElementById('export-csv').addEventListener('click', exportChartsToCSV);
+
+        // --- Daily Stats Fetching ---
+        function formatStat(v) {
+            return (v === null || v === undefined) ? '--' : parseFloat(v).toFixed(2);
+        }
+
+        function fetchDailyStats() {
+            fetch("/api/daily-stats/")
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'online' && data.stats) {
+                        const s = data.stats;
+
+                        // Update Temperature
+                        document.getElementById('temp-min').innerText = formatStat(s.temp_min);
+                        document.getElementById('temp-avg').innerText = formatStat(s.temp_avg);
+                        document.getElementById('temp-max').innerText = formatStat(s.temp_max);
+
+                        // Update Humidity
+                        document.getElementById('humid-min').innerText = formatStat(s.humid_min);
+                        document.getElementById('humid-avg').innerText = formatStat(s.humid_avg);
+                        document.getElementById('humid-max').innerText = formatStat(s.humid_max);
+
+                        // Update Moisture Level (Water)
+                        document.getElementById('water-min').innerText = formatStat(s.water_min);
+                        document.getElementById('water-avg').innerText = formatStat(s.water_avg);
+                        document.getElementById('water-max').innerText = formatStat(s.water_max);
+
+                        // Update Light
+                        document.getElementById('light-min').innerText = formatStat(s.light_min);
+                        document.getElementById('light-avg').innerText = formatStat(s.light_avg);
+                        document.getElementById('light-max').innerText = formatStat(s.light_max);
+
+                        // Update Gas
+                        document.getElementById('gas-min').innerText = formatStat(s.gas_min);
+                        document.getElementById('gas-avg').innerText = formatStat(s.gas_avg);
+                        document.getElementById('gas-max').innerText = formatStat(s.gas_max);
+                    }
+                })
+                .catch(err => console.error("Error fetching daily stats:", err));
+        }
+
+        // Fetch stats immediately on load, then every 10 seconds
+        fetchDailyStats();
+        setInterval(fetchDailyStats, 10000);
+
+        // --- Save Dynamic Thresholds ---
+        document.getElementById('save-thresholds-btn').addEventListener('click', function () {
+            currentThresholds.tempMin = parseFloat(document.getElementById('thresh-temp-min').value);
+            currentThresholds.tempMax = parseFloat(document.getElementById('thresh-temp-max').value);
+            currentThresholds.humidMin = parseFloat(document.getElementById('thresh-humid-min').value);
+            currentThresholds.humidMax = parseFloat(document.getElementById('thresh-humid-max').value);
+            currentThresholds.waterMin = parseFloat(document.getElementById('thresh-water-min').value);
+            currentThresholds.gasMax = parseFloat(document.getElementById('thresh-gas-max').value);
+
+            // Hide modal
+            var modalEl = document.getElementById('thresholdModal');
+            var modalObj = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
+            if (modalObj) {
+                modalObj.hide();
+            }
+
+            // Immediately force an update check
+            updateSensors();
+        });
+
+        // --- Notification Hub (AJAX Logic) ---
+        function fetchAlerts() {
+            fetch("{% url 'logs_api' %}")
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // 1. Update Badge
+                        const badge = document.getElementById('unread-badge');
+                        if (data.unread_count > 0) {
+                            badge.textContent = data.unread_count;
+                            badge.classList.remove('d-none');
+                        } else {
+                            badge.classList.add('d-none');
+                        }
+
+                        // 2. Populate Dropdown & Modal List
+                        const dropList = document.getElementById('alerts-list-container');
+                        const modalList = document.getElementById('all-alerts-list');
+                        dropList.innerHTML = '';
+                        modalList.innerHTML = '';
+
+                        if (data.logs.length === 0) {
+                            dropList.innerHTML = '<li><span class="dropdown-item text-center text-muted small py-3">No recent alerts</span></li>';
+                            modalList.innerHTML = '<li class="list-group-item text-center text-muted">No recent alerts</li>';
+                        } else {
+                            data.logs.forEach(log => {
+                                // Decide icon/color based on level
+                                let icon = 'fa-info-circle text-info';
+                                if (log.level === 'WARNING') icon = 'fa-exclamation-triangle text-warning';
+                                if (log.level === 'CRITICAL') icon = 'fa-times-circle text-danger';
+
+                                const readClass = log.is_read ? '' : 'unread-alert';
+
+                                // Action buttons HTML
+                                // Only show 'Mark Read' if it's currently unread
+                                const readBtnHtml = log.is_read ? '' : `<i class="fas fa-check alert-actions" title="Mark as Read" onclick="markAsRead(${log.id}); event.stopPropagation();"></i>`;
+                                const deleteBtnHtml = `<i class="fas fa-trash alert-actions" title="Delete" onclick="deleteAlert(${log.id}); event.stopPropagation();"></i>`;
+
+                                const itemHtml = `
+                                    <div class="d-flex justify-content-between align-items-center w-100">
+                                        <div>
+                                            <p class="alert-text"><i class="fas ${icon} me-1"></i> ${log.message}</p>
+                                            <span class="alert-time">${log.timestamp}</span>
+                                        </div>
+                                        <div class="text-nowrap ms-2">
+                                            ${readBtnHtml}
+                                            ${deleteBtnHtml}
+                                        </div>
+                                    </div>
+                                `;
+
+                                // Append to dropdown
+                                dropList.innerHTML += `<li><div class="dropdown-item ${readClass}">${itemHtml}</div></li>`;
+                                // Append to Modal
+                                modalList.innerHTML += `<li class="list-group-item ${readClass}">${itemHtml}</li>`;
+                            });
+                        }
+                    }
+                })
+                .catch(err => console.error("Error fetching alerts:", err));
+        }
+
+        function markAsRead(id) {
+            fetch(`/api/logs/read/${id}/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            }).then(() => fetchAlerts()); // Refresh right after
+        }
+
+        function deleteAlert(id) {
+            fetch(`/api/logs/delete/${id}/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            }).then(() => fetchAlerts()); // Refresh right after
+        }
+
+        function deleteAllAlerts() {
+            fetch(`/api/logs/delete_all/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            }).then(() => fetchAlerts()); // Refresh right after
+        }
+
+        // Initialize Fetch and put on interval
+        fetchAlerts();
+        setInterval(fetchAlerts, 3000);
+
+    </script>
+    {% endblock %}

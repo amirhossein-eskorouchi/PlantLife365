@@ -157,3 +157,9 @@ cache/
 config.local.*
 device.local.*
 wifi.local.*
+
+# ------------------------------------------------------------
+# PlantLife365 device-specific firmware configuration
+# ------------------------------------------------------------
+
+/firmware/esp32/config.py

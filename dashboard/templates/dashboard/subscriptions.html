@@ -1,0 +1,338 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Manage Subscriptions{% endblock %}
+
+{% block content %}
+<style>
+    .subs-wrapper {
+        padding-top: 2rem;
+        padding-bottom: 5rem;
+        position: relative;
+    }
+
+    .subs-header {
+        text-align: center;
+        margin-bottom: 4rem;
+    }
+
+    .subs-header h1 {
+        font-weight: 900;
+        font-size: 3.5rem;
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 1rem;
+    }
+
+    .subs-header p {
+        color: #6c757d;
+        font-size: 1.2rem;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .pricing-card {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 20px;
+        padding: 2.5rem;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.05);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        position: relative;
+        overflow: hidden;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .pricing-card:hover {
+        transform: translateY(-15px);
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.1);
+    }
+
+    .pricing-card.researcher {
+        background: linear-gradient(145deg, #6a11cb 0%, #2575fc 100%);
+        color: white;
+        border: none;
+        box-shadow: 0 20px 40px rgba(106, 17, 203, 0.3);
+    }
+
+    .pricing-card.premium {
+        background: linear-gradient(145deg, #1a2980 0%, #26d0ce 100%);
+        color: white;
+        border: none;
+        box-shadow: 0 20px 40px rgba(38, 208, 206, 0.3);
+    }
+
+    .pricing-card.enterprise {
+        background: linear-gradient(145deg, #000000 0%, #434343 100%);
+        color: white;
+        border: none;
+    }
+
+    .tier-badge {
+        position: absolute;
+        top: 20px;
+        right: -35px;
+        background: #ffc107;
+        color: #000;
+        font-size: 0.8rem;
+        font-weight: 700;
+        padding: 5px 40px;
+        transform: rotate(45deg);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .price-value {
+        font-size: 3rem;
+        font-weight: 700;
+        margin: 1.5rem 0;
+    }
+
+    .price-value span {
+        font-size: 1.2rem;
+        font-weight: 400;
+        opacity: 0.8;
+    }
+
+    .features-list {
+        list-style: none;
+        padding: 0;
+        margin: 1.5rem 0 2.5rem 0;
+        flex-grow: 1;
+    }
+
+    .features-list li {
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        font-size: 1.05rem;
+    }
+
+    .features-list li i {
+        color: #11998e;
+        margin-right: 12px;
+        font-size: 1.2rem;
+    }
+
+    .premium .features-list li i,
+    .enterprise .features-list li i {
+        color: #38ef7d;
+    }
+
+    .features-list li.disabled {
+        opacity: 0.5;
+        text-decoration: line-through;
+    }
+
+    .features-list li.disabled i {
+        color: #dc3545 !important;
+    }
+
+    .btn-pricing {
+        width: 100%;
+        padding: 12px;
+        border-radius: 50px;
+        font-weight: 700;
+        font-size: 1.1rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+    }
+
+    .btn-outline-custom {
+        border: 2px solid #11998e;
+        color: #11998e;
+        background: transparent;
+    }
+
+    .btn-outline-custom:hover {
+        background: #11998e;
+        color: white;
+    }
+
+    .btn-solid-custom {
+        background: white;
+        color: #1a2980;
+        border: none;
+    }
+
+    .btn-solid-custom:hover {
+        background: #f8f9fa;
+        transform: scale(1.05);
+        color: #1a2980;
+    }
+
+    .current-plan-banner {
+        background: rgba(17, 153, 142, 0.1);
+        border: 1px solid #11998e;
+        color: #11998e;
+        padding: 15px;
+        border-radius: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        font-weight: 600;
+    }
+
+    .blob {
+        position: absolute;
+        filter: blur(80px);
+        z-index: -1;
+        opacity: 0.4;
+        border-radius: 50%;
+    }
+
+    .blob-1 {
+        top: 0;
+        left: -100px;
+        width: 400px;
+        height: 400px;
+        background: #38ef7d;
+    }
+
+    .blob-2 {
+        bottom: -100px;
+        right: -100px;
+        width: 500px;
+        height: 500px;
+        background: #11998e;
+    }
+</style>
+
+<div class="subs-wrapper">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <div class="subs-header">
+        <h1>Upgrade Your Farm</h1>
+        <p>Unlock advanced analytics, AI assistance, and unlimited device pairings to take your automated greenhouse to
+            the next level.</p>
+    </div>
+
+    <!-- Alert Messages (Global) -->
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert"
+        style="border-radius: 10px; border-left: 5px solid {% if message.tags == 'error' %}#dc3545{% else %}#28a745{% endif %};">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="current-plan-banner shadow-sm">
+        <div>
+            {% if subscription.tier == 'PRM' %}
+            <i class="fas fa-tree me-2"></i>
+            {% else %}
+            <i class="fas fa-seedling me-2"></i>
+            {% endif %}
+            Current Plan: <strong>{{ subscription.get_tier_display }}</strong>
+        </div>
+        <div>
+            Devices Linked: <strong>{{ current_devices }} / {{ max_devices_display }}</strong>
+        </div>
+    </div>
+
+    <p class="text-center mb-4" style="font-size: 1.4rem; font-weight: 800; color: #333; letter-spacing: 1px;">
+        All plans come with a $299 one-time device installation charge<br>
+        Additional device installation charge: $199
+    </p>
+
+    <div class="row g-4 align-items-stretch justify-content-center">
+        <!-- FREE TIER -->
+        <div class="col-lg-4">
+            <div class="pricing-card">
+                <h3 class="fw-bold">🌱 Standard</h3>
+                <p class="text-muted">Perfect for small scale monitoring.</p>
+                <div class="price-value">$25<span>/mo</span></div>
+                <p class="text-muted"
+                    style="font-size: 0.9rem; margin-top: -15px; margin-bottom: 20px; line-height: 1.4;">
+                    with annual subscription discount ($300 billed up front).<br>
+                    $30 if billed monthly
+                </p>
+
+                <ul class="features-list">
+                    <li><i class="fas fa-check-circle"></i> 24-hr Data History</li>
+                    <li><i class="fas fa-check-circle"></i> Real-time Dashboard</li>
+                    <li><i class="fas fa-check-circle"></i> AI Chatbot Assistant</li>
+                    <li><i class="fas fa-check-circle"></i> SMS Alerts</li>
+                </ul>
+
+                {% if subscription.tier == 'STD' %}
+                <button class="btn-pricing btn-outline-custom" disabled>Current Plan</button>
+                {% else %}
+                <a href="{% url 'upgrade_subscription' 'STD' %}" class="btn-pricing btn-outline-custom">Switch to
+                    Standard</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- RESEARCHER TIER -->
+        <div class="col-lg-4">
+            <div class="pricing-card researcher">
+                <h3 class="fw-bold">🔬 Researcher</h3>
+                <p style="opacity: 0.8;">Enhanced tools for data science.</p>
+                <div class="price-value">$50<span>/mo</span></div>
+                <p style="font-size: 0.9rem; margin-top: -15px; margin-bottom: 20px; opacity: 0.85; line-height: 1.4;">
+                    with annual subscription discount ($600 billed up front).<br>
+                    $60 if billed monthly
+                </p>
+
+                <ul class="features-list">
+                    <li><i class="fas fa-check-circle"></i> All Standard Features Included</li>
+                    <li><i class="fas fa-check-circle"></i> Website supports 2 devices</li>
+                    <li><i class="fas fa-check-circle"></i> 30-day Data History</li>
+                    <li><i class="fas fa-check-circle"></i> Access to ML Tools</li>
+                    <li><i class="fas fa-check-circle"></i> Pretrained Time Series Model</li>
+                    <li><i class="fas fa-check-circle"></i> Custom ML Code Execution</li>
+                </ul>
+
+                {% if subscription.tier == 'RES' %}
+                <button class="btn-pricing btn-solid-custom" disabled style="opacity: 0.7;">Current Plan</button>
+                {% else %}
+                <a href="{% url 'upgrade_subscription' 'RES' %}" class="btn-pricing btn-solid-custom">Upgrade to
+                    Researcher</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ENTERPRISE TIER -->
+        <div class="col-lg-4">
+            <div class="pricing-card premium">
+                <h3 class="fw-bold">🌳 Premium</h3>
+                <p style="opacity: 0.8;">Industrial scale monitoring.</p>
+                <div class="price-value">$100<span>/mo</span></div>
+                <p style="font-size: 0.9rem; margin-top: -15px; margin-bottom: 20px; opacity: 0.85; line-height: 1.4;">
+                    with annual subscription discount ($1200 billed up front).<br>
+                    $120 if billed monthly
+                </p>
+
+                <ul class="features-list">
+                    <li><i class="fas fa-check-circle"></i> All Features Included</li>
+                    <li><i class="fas fa-check-circle"></i> Website supports unlimited devices</li>
+                    <li><i class="fas fa-check-circle"></i> Lifetime Data History</li>
+                    <li><i class="fas fa-check-circle"></i> 24/7 Priority Support</li>
+                    <li><i class="fas fa-check-circle"></i> Advanced AI Models</li>
+                    <li><i class="fas fa-check-circle"></i> Early Access to New Features</li>
+                </ul>
+
+                {% if subscription.tier == 'PRM' %}
+                <button class="btn-pricing btn-solid-custom" disabled style="opacity: 0.7;">Current Plan</button>
+                {% else %}
+                <a href="{% url 'upgrade_subscription' 'PRM' %}" class="btn-pricing btn-solid-custom">Upgrade to
+                    Premium</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

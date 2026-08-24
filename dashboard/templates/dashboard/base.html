@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PlantLife365 - {% block title %}Dashboard{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .card {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: none;
+        }
+
+        .navbar-brand {
+            font-weight: bold;
+            color: #2c3e50 !important;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            background-color: #008000;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            background-color: #008000;
+        }
+
+        /* Notifications */
+        .notification-dropdown {
+            min-width: 320px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .notification-dropdown .dropdown-item {
+            white-space: normal;
+            border-bottom: 1px solid #eee;
+            padding: 10px 15px;
+            cursor: default;
+        }
+
+        .notification-dropdown .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .unread-alert {
+            background-color: #f8f9fa;
+            border-left: 3px solid #e74c3c !important;
+        }
+
+        .alert-text {
+            font-size: 0.85rem;
+            margin-bottom: 0;
+        }
+
+        .alert-time {
+            font-size: 0.75rem;
+            color: #888;
+        }
+
+        .alert-actions {
+            cursor: pointer;
+            color: #aaa;
+            margin-left: 8px;
+        }
+
+        .alert-actions:hover {
+            color: #333;
+        }
+
+        .nav-icon-badge {
+            position: absolute;
+            top: 0;
+            right: -5px;
+            font-size: 0.6rem;
+            padding: 0.25em 0.4em;
+            border-radius: 50%;
+        }
+
+        /* --- Chatbot UI Styles --- */
+        .chat-bot-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #28a745;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            z-index: 1050;
+            transition: transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+            border: none;
+        }
+
+        .chat-bot-btn:hover {
+            transform: scale(1.1);
+            background-color: #218838;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        .chat-bot-window {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            width: 350px;
+            height: 450px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            z-index: 1050;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .chat-bot-window.active {
+            display: flex;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .chat-header {
+            background-color: #28a745;
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .chat-body {
+            flex-grow: 1;
+            padding: 15px;
+            background-color: #f8f9fa;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .chat-message {
+            max-width: 85%;
+            padding: 10px 14px;
+            border-radius: 16px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .chat-message.bot {
+            background-color: #e9ecef;
+            color: #333;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-message.user {
+            background-color: #28a745;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .chat-footer {
+            padding: 15px;
+            background-color: white;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .chat-input-wrapper {
+            background-color: #f1f3f5;
+            border-radius: 20px;
+            padding: 2px 2px 2px 15px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .chat-input {
+            border: none;
+            background: transparent;
+            box-shadow: none;
+            flex-grow: 1;
+        }
+        
+        .chat-input:focus {
+            outline: none;
+            box-shadow: none;
+            background: transparent;
+        }
+
+        .chat-send-btn {
+            border-radius: 50%;
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-light bg-white mb-4 shadow-sm">
+        <div class="container d-flex justify-content-between align-items-center">
+            <a class="navbar-brand" href="{% url 'dashboard' %}"><i class="fas fa-leaf text-success"></i>
+                PlantLife365</a>
+
+            <div class="d-flex align-items-center">
+                <!-- Dashboard Button -->
+                {% block dashboard_nav_btn %}
+                <a href="{% url 'dashboard' %}" class="btn btn-outline-primary me-3">
+                    <i class="fas fa-home me-1"></i> Dashboard
+                </a>
+                {% endblock %}
+
+
+                <!-- Tour Button -->
+                <a href="{% url 'intro' %}" class="btn btn-outline-success me-3">
+                    <i class="fas fa-play-circle me-1"></i> Tour
+                </a>
+
+                <!-- FAQ Button -->
+                <button class="btn btn-outline-info me-3" data-bs-toggle="modal" data-bs-target="#faqModal">
+                    <i class="fas fa-question-circle me-1"></i> FAQ
+                </button>
+
+                <!-- Notification Bell (Now "Alerts" Button) -->
+                <div class="dropdown me-4">
+                    <button class="btn btn-outline-primary position-relative" id="alertsDropdown" type="button"
+                        data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside">
+                        <i class="fas fa-bell me-1"></i> Alerts
+                        <span id="unread-badge" class="badge bg-danger nav-icon-badge d-none">0</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end notification-dropdown shadow"
+                        aria-labelledby="alertsDropdown">
+                        <li>
+                            <div class="dropdown-header text-center fw-bold text-dark bg-light border-bottom">
+                                Recent Alerts
+                            </div>
+                        </li>
+                        <div id="alerts-list-container">
+                            <li><span class="dropdown-item text-center text-muted small py-3">No recent alerts</span>
+                            </li>
+                        </div>
+                        <!-- View All Footer inside dropdown makes it clean -->
+                        <li class="d-flex border-top">
+                            <button type="button" class="btn btn-sm btn-link w-50 text-decoration-none text-primary"
+                                style="border-radius: 0; border-right: 1px solid #eee;" data-bs-toggle="modal"
+                                data-bs-target="#allAlertsModal">
+                                View All
+                            </button>
+                            <button type="button" class="btn btn-sm btn-link w-50 text-decoration-none text-danger"
+                                style="border-radius: 0;" onclick="deleteAllAlerts()">
+                                Clear All
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- System Status -->
+                {% block system_status %}
+                <span class="navbar-text m-0 me-4">
+                    System Status: <span id="nav-status-dot" class="status-indicator"></span> <span
+                        id="nav-status-text">Online</span>
+                </span>
+                {% endblock %}
+
+                <!-- Upgrade Button -->
+                <a href="{% url 'subscriptions' %}" class="btn btn-warning btn-sm me-3" style="font-weight: bold; border-radius: 20px; box-shadow: 0 4px 10px rgba(255, 193, 7, 0.3);">
+                    <i class="fas fa-crown text-dark"></i> Plans
+                </a>
+
+                <!-- Settings Button -->
+                <a href="{% url 'settings' %}" class="btn btn-outline-secondary btn-sm me-3">
+                    <i class="fas fa-cog"></i> Settings
+                </a>
+
+                <!-- Logout Button -->
+                <a href="{% url 'logout' %}" class="btn btn-outline-danger btn-sm">
+                    <i class="fas fa-sign-out-alt me-1"></i> Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- All Alerts Modal -->
+    <div class="modal fade" id="allAlertsModal" tabindex="-1" aria-labelledby="allAlertsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title" id="allAlertsModalLabel"><i class="fas fa-history me-2"></i>Complete Alert
+                        History</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <ul class="list-group list-group-flush" id="all-alerts-list">
+                        <!-- Populated by JS -->
+                    </ul>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteAllAlerts()"
+                        data-bs-dismiss="modal">
+                        <i class="fas fa-trash-alt me-1"></i>Delete All
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAQ Modal -->
+    <div class="modal fade" id="faqModal" tabindex="-1" aria-labelledby="faqModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title" id="faqModalLabel"><i class="fas fa-question-circle me-2"></i>Frequently
+                        Asked Questions</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="accordion" id="faqAccordion">
+
+                        <!-- FAQ 1 -->
+                        <div class="accordion-item border-0 border-bottom mb-2 bg-transparent">
+                            <h2 class="accordion-header" id="headingOne">
+                                <button class="accordion-button collapsed px-1 py-3 bg-transparent shadow-none"
+                                    type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne"
+                                    aria-expanded="false" aria-controls="collapseOne">
+                                    <strong>What do the sensor alert thresholds mean?</strong>
+                                </button>
+                            </h2>
+                            <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne"
+                                data-bs-parent="#faqAccordion">
+                                <div class="accordion-body px-1 text-muted">
+                                    The thresholds define the safe operating range for your agricultural environment.
+                                    If a sensor reading falls outside of these boundaries (e.g., getting too hot, too
+                                    dry, or detecting dangerous gases),
+                                    the system will automatically trigger a warning or critical alert card, blinking red
+                                    to notify you immediately.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- FAQ 2 -->
+                        <div class="accordion-item border-0 border-bottom mb-2 bg-transparent">
+                            <h2 class="accordion-header" id="headingTwo">
+                                <button class="accordion-button collapsed px-1 py-3 bg-transparent shadow-none"
+                                    type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo"
+                                    aria-expanded="false" aria-controls="collapseTwo">
+                                    <strong>How do I change my alert thresholds?</strong>
+                                </button>
+                            </h2>
+                            <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo"
+                                data-bs-parent="#faqAccordion">
+                                <div class="accordion-body px-1 text-muted">
+                                    You can dynamically adjust your thresholds by clicking the <strong>"Filter"</strong>
+                                    button located just above the trend graphs on the dashboard.
+                                    Update the minimum or maximum values as needed, and click save. The system will
+                                    start evaluating the new rules immediately.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- FAQ 3 -->
+                        <div class="accordion-item border-0 border-bottom mb-2 bg-transparent">
+                            <h2 class="accordion-header" id="headingThree">
+                                <button class="accordion-button collapsed px-1 py-3 bg-transparent shadow-none"
+                                    type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree"
+                                    aria-expanded="false" aria-controls="collapseThree">
+                                    <strong>How do I export my historical data?</strong>
+                                </button>
+                            </h2>
+                            <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree"
+                                data-bs-parent="#faqAccordion">
+                                <div class="accordion-body px-1 text-muted">
+                                    You can export your database records directly from the dashboard. Locate the
+                                    <strong>"Export CSV"</strong> button above the graphs.
+                                    Select the specific date you want to analyze using the date picker next to it, then
+                                    click export. All readings recorded on that day will be downloaded securely as a
+                                    spreadsheet.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- FAQ 4 -->
+                        <div class="accordion-item border-0 mb-2 bg-transparent">
+                            <h2 class="accordion-header" id="headingFour">
+                                <button class="accordion-button collapsed px-1 py-3 bg-transparent shadow-none"
+                                    type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour"
+                                    aria-expanded="false" aria-controls="collapseFour">
+                                    <strong>What should I do if the system status is Offline?</strong>
+                                </button>
+                            </h2>
+                            <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour"
+                                data-bs-parent="#faqAccordion">
+                                <div class="accordion-body px-1 text-muted">
+                                    If the system indicates an Offline status, it means the dashboard hasn't received
+                                    data from the ESP32 microcontroller recently.
+                                    Ensure the physical sensors and the ESP32 board are powered on, connected to the
+                                    correct Wi-Fi network, and that no firewall is blocking port 8000.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- FAQ 5 -->
+                        <!-- FAQ 5 -->
+                        <div class="accordion-item border-0 border-bottom mb-2 bg-transparent">
+                            <h2 class="accordion-header" id="headingFive">
+                                <button class="accordion-button collapsed px-1 py-3 bg-transparent shadow-none"
+                                    type="button" data-bs-toggle="collapse" data-bs-target="#collapseFive"
+                                    aria-expanded="false" aria-controls="collapseFive">
+                                    <strong>What do the green and gray dots mean in the navigation bar?</strong>
+                                </button>
+                            </h2>
+                            <div id="collapseFive" class="accordion-collapse collapse" aria-labelledby="headingFive"
+                                data-bs-parent="#faqAccordion">
+                                <div class="accordion-body px-1 text-muted">
+                                    The dot next to "System Status" provides a quick glance at your IoT device's
+                                    connection.
+                                    A green dot indicates the system is "Online" and actively receiving live sensor
+                                    data.
+                                    A gray dot indicates the system is "Offline" and data may be delayed.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- FAQ 6 -->
+                        <div class="accordion-item border-0 mb-2 bg-transparent">
+                            <h2 class="accordion-header" id="headingSix">
+                                <button class="accordion-button collapsed px-1 py-3 bg-transparent shadow-none"
+                                    type="button" data-bs-toggle="collapse" data-bs-target="#collapseSix"
+                                    aria-expanded="false" aria-controls="collapseSix">
+                                    <strong>How do I stop receiving alert emails?</strong>
+                                </button>
+                            </h2>
+                            <div id="collapseSix" class="accordion-collapse collapse" aria-labelledby="headingSix"
+                                data-bs-parent="#faqAccordion">
+                                <div class="accordion-body px-1 text-muted">
+                                    Currently, alert emails are sent automatically when sensor readings hit critical
+                                    thresholds.
+                                    To stop receiving them entirely, you can either broaden your sensor thresholds using
+                                    the Filter menu so they trigger less frequently,
+                                    or contact an administrator to disable email notifications for your specific
+                                    account.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chatbot UI Components -->
+    <button class="chat-bot-btn" id="chatToggleBtn" aria-label="Toggle Assistant">
+        <i class="fas fa-comment-dots"></i>
+    </button>
+
+    <div class="chat-bot-window" id="chatWindow">
+        <div class="chat-header text-white">
+            <span><i class="fas fa-robot me-2 text-white"></i> PlantLife Assistant</span>
+            <button type="button" class="btn-close btn-close-white" id="closeChatBtn" aria-label="Close"></button>
+        </div>
+        <div class="chat-body shadow-inner" id="chatBody">
+            <div class="chat-message bot shadow-sm">
+                Hi there! 👋 I'm your PlantLife AI assistant. I'm here to answer any questions you have about your crops or the dashboard. How can I help today?
+            </div>
+        </div>
+        <div class="chat-footer">
+            <form id="chatForm">
+                <div class="chat-input-wrapper">
+                    <input type="text" id="chatInput" class="chat-input" placeholder="Ask something..." aria-label="Ask a question" required autocomplete="off">
+                    <button class="btn btn-success chat-send-btn" type="submit" aria-label="Send">
+                        <i class="fas fa-paper-plane" style="font-size: 0.9rem;"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Chatbot Interaction Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatToggleBtn = document.getElementById('chatToggleBtn');
+            const closeChatBtn = document.getElementById('closeChatBtn');
+            const chatWindow = document.getElementById('chatWindow');
+            const chatForm = document.getElementById('chatForm');
+            const chatInput = document.getElementById('chatInput');
+            const chatBody = document.getElementById('chatBody');
+
+            function toggleChat() {
+                const isActive = chatWindow.classList.toggle('active');
+                if (isActive) {
+                    chatToggleBtn.innerHTML = '<i class="fas fa-times"></i>';
+                    chatToggleBtn.style.backgroundColor = '#dc3545'; // Turn red to close
+                    // Auto scroll to bottom
+                    chatBody.scrollTop = chatBody.scrollHeight;
+                    setTimeout(() => chatInput.focus(), 300);
+                } else {
+                    chatToggleBtn.innerHTML = '<i class="fas fa-comment-dots"></i>';
+                    chatToggleBtn.style.backgroundColor = '#28a745'; // Back to green
+                }
+            }
+
+            chatToggleBtn.addEventListener('click', toggleChat);
+            closeChatBtn.addEventListener('click', toggleChat);
+
+            function appendMessage(text, sender) {
+                const msgDiv = document.createElement('div');
+                msgDiv.className = `chat-message ${sender} shadow-sm`;
+                msgDiv.textContent = text;
+                chatBody.appendChild(msgDiv);
+                chatBody.scrollTop = chatBody.scrollHeight;
+            }
+
+            chatForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const text = chatInput.value.trim();
+                if (!text) return;
+                
+                // Add user message to UI
+                appendMessage(text, 'user');
+                chatInput.value = '';
+                
+                // Show typing indicator
+                const typingIndicator = document.createElement('div');
+                typingIndicator.className = 'chat-message bot text-muted fst-italic';
+                typingIndicator.innerHTML = '<i class="fas fa-ellipsis-h fa-fade"></i> AI is thinking...';
+                chatBody.appendChild(typingIndicator);
+                chatBody.scrollTop = chatBody.scrollHeight;
+
+                // Send request to Ollama Backend
+                fetch('/api/chat/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    typingIndicator.remove();
+                    if (data.reply) {
+                        appendMessage(data.reply, 'bot');
+                    } else if (data.error) {
+                        appendMessage("Error: " + data.error, 'bot');
+                    }
+                })
+                .catch(error => {
+                    typingIndicator.remove();
+                    appendMessage("Failed to connect to the backend server.", 'bot');
+                    console.error('Chat error:', error);
+                });
+            });
+        });
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

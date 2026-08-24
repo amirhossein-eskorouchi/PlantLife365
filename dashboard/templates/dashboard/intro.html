@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Welcome to PlantLife365</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@400;500;600&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #f4f6f9;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .intro-header {
+            text-align: center;
+            margin-bottom: 1rem;
+            opacity: 0;
+            transform: translateY(-20px);
+            animation: fadeInDown 0.8s ease forwards;
+        }
+
+        @keyframes fadeInDown {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .intro-header h1 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 2.2rem;
+            color: #11998e;
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            background-clip: text;
+            /* Standard property */
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.2rem;
+        }
+
+        .intro-header p {
+            font-size: 1.1rem;
+            color: #6c757d;
+        }
+
+        /* Demo Container - Adjusted strictly for dynamic screen fitting */
+        .demo-container {
+            width: 100%;
+            max-width: 1100px;
+            background: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem 2rem;
+            position: relative;
+            z-index: 10;
+            opacity: 0;
+            transform: scale(0.95);
+            animation: scaleUp 0.8s ease 0.3s forwards;
+            height: auto;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        @keyframes scaleUp {
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Mock Navbar */
+        .mock-navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px dashed #eee;
+            margin-bottom: 1rem;
+        }
+
+        .mock-nav-brand {
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: #2c3e50;
+        }
+
+        .mock-nav-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        /* Mock Alert Bell Button */
+        .mock-bell-btn {
+            border: 1px solid #0d6efd;
+            color: #0d6efd;
+            background: white;
+            padding: 5px 12px;
+            border-radius: 6px;
+            position: relative;
+        }
+
+        .nav-icon-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            font-size: 0.6rem;
+            padding: 0.25em 0.4em;
+            border-radius: 50%;
+            background: #dc3545;
+            color: white;
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .nav-icon-badge.show {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .mock-status {
+            font-size: 0.9rem;
+            color: #28a745;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background: #28a745;
+            border-radius: 50%;
+            box-shadow: 0 0 5px rgba(40, 167, 69, 0.5);
+            animation: pulse-dot 2s infinite;
+        }
+
+        @keyframes pulse-dot {
+            0% {
+                box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 6px rgba(40, 167, 69, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+            }
+        }
+
+        /* 5 Mock Sensors layout */
+        .mock-sensors {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 1rem;
+            position: relative;
+        }
+
+        .mock-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 0.8rem;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.4s ease;
+            position: relative;
+            flex: 1;
+            isolation: isolate;
+            /* Prevent content bleeding during animations */
+        }
+
+        .mock-card i {
+            font-size: 1.5rem;
+            margin-bottom: 0.3rem;
+            display: block;
+        }
+
+        .mock-card h4 {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin: 0;
+        }
+
+        .mock-value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .mock-stats {
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 0.5rem;
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        /* Alert Animation Status */
+        @keyframes emergency-blink {
+            0% {
+                background-color: rgba(220, 53, 69, 1);
+                color: white;
+                transform: scale(1);
+                box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+            }
+
+            50% {
+                background-color: rgba(139, 0, 0, 1);
+                color: white;
+                transform: scale(1.05);
+                box-shadow: 0 0 20px rgba(220, 53, 69, 0.8);
+            }
+
+            100% {
+                background-color: rgba(220, 53, 69, 1);
+                color: white;
+                transform: scale(1);
+                box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+            }
+        }
+
+        .mock-card.alert-active {
+            animation: emergency-blink 0.8s infinite alternate;
+            border-color: #8b0000;
+            z-index: 70;
+            /* Ensure it stays fully above other elements during blink */
+        }
+
+        .mock-card.alert-active h4,
+        .mock-card.alert-active .mock-value,
+        .mock-card.alert-active i,
+        .mock-card.alert-active .mock-stats,
+        .mock-card.alert-active .text-muted {
+            color: white !important;
+        }
+
+        /* Mock Charts Area */
+        #card-charts {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            padding: 1.5rem;
+            border: 2px dashed #ddd;
+            background: #fafafa;
+            text-align: left;
+            isolation: auto;
+            /* Free children from the global isolation so the focused elements pop out over the demo-overlay correctly */
+        }
+
+        .mock-chart-container {
+            width: 100%;
+            flex: 1;
+            margin-top: 10px;
+            min-height: 200px;
+            /* allows shrinking */
+            position: relative;
+        }
+
+        .mock-chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 10px;
+        }
+
+        .mock-tabs {
+            display: flex;
+            gap: 15px;
+            color: #0d6efd;
+            font-size: 0.9rem;
+        }
+
+        .mock-tabs span {
+            cursor: pointer;
+            padding-bottom: 8px;
+        }
+
+        .mock-tabs span.active {
+            color: #495057;
+            border-bottom: 2px solid #ccc;
+        }
+
+
+
+        /* Overlay & Focus highlighting */
+        .demo-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            z-index: 50;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+            border-radius: 15px;
+        }
+
+        .demo-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .active-focus {
+            z-index: 60 !important;
+            box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.2), 0 15px 35px rgba(0, 0, 0, 0.6) !important;
+            transform: scale(1.05);
+            /* pop out */
+            background-color: #fff;
+            position: relative;
+            /* Force proper stacking for static elements */
+            transition: all 0.4s ease;
+        }
+
+        /* Guided Tour Tooltips */
+        .tour-guide.top-arrow-alert::after {
+            top: -16px;
+            right: 10px;
+            /* Keeps the arrow pointing at the bell icon */
+            border-bottom-color: #2c3e50;
+        }
+
+        .tour-guide {
+            position: absolute;
+            background: #2c3e50;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            max-width: 300px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.4s;
+            pointer-events: none;
+            line-height: 1.4;
+        }
+
+        .tour-guide::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border: 8px solid transparent;
+        }
+
+        .tour-guide.top-arrow::after {
+            top: -16px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-bottom-color: #2c3e50;
+        }
+
+        .tour-guide.bottom-arrow::after {
+            bottom: -16px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-top-color: #2c3e50;
+        }
+
+        .tour-guide.top-arrow-right::after {
+            top: -16px;
+            right: -80px;
+            /* Offset to keep it pointing at bell while shifted massively left */
+            border-bottom-color: #2c3e50;
+        }
+
+        .tour-guide.top-arrow-end::after {
+            top: -16px;
+            right: 25px;
+            /* Offset to perfectly align with right-sided buttons when the tooltip is placed via bottom-right */
+            border-bottom-color: #2c3e50;
+        }
+
+        .tour-guide.right-arrow::after {
+            right: -16px;
+            top: 15px;
+            border-left-color: #2c3e50;
+        }
+
+        .tour-guide.left-arrow::after {
+            left: -16px;
+            top: 15px;
+            border-right-color: #2c3e50;
+        }
+
+        /* Actions */
+        .tour-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 1rem;
+            position: relative;
+            z-index: 70;
+        }
+
+        .btn-got-it {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            border: none;
+            border-radius: 50px;
+            padding: 12px 35px;
+            color: white;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            font-size: 1.1rem;
+            box-shadow: 0 10px 20px rgba(17, 153, 142, 0.3);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(10px);
+        }
+
+        .btn-got-it.visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+            z-index: 70;
+            position: relative;
+        }
+
+        .btn-got-it:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(17, 153, 142, 0.4);
+        }
+
+        /* Background elements */
+        .bg-circle {
+            position: absolute;
+            border-radius: 50%;
+            z-index: -1;
+            filter: blur(80px);
+            opacity: 0.3;
+        }
+
+        .c-1 {
+            width: 300px;
+            height: 300px;
+            background: #11998e;
+            top: -50px;
+            left: -50px;
+        }
+
+        .c-2 {
+            width: 400px;
+            height: 400px;
+            background: #38ef7d;
+            bottom: -100px;
+            right: -50px;
+        }
+
+        /* Progress Bar */
+        .tour-progress {
+            width: 100%;
+            height: 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            margin-top: 1rem;
+            overflow: hidden;
+            opacity: 0;
+            position: relative;
+            z-index: 70;
+        }
+
+        .tour-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #11998e, #38ef7d);
+            transition: width 0.5s ease;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-circle c-1"></div>
+    <div class="bg-circle c-2"></div>
+
+    <div class="intro-header">
+        <h1>Dashboard Interactive Tour</h1>
+        <p>A 15-second simulation of your completely personalized command center.</p>
+    </div>
+
+    <div class="demo-container" id="demo-box">
+        <!-- Overlay applied globally over elements except focused ones -->
+        <div class="demo-overlay" id="demo-overlay"></div>
+
+        <!-- Mock Navbar -->
+        <div class="mock-navbar" id="mock-navbar">
+            <div class="mock-nav-brand"><i class="fas fa-leaf text-success me-2"></i>PlantLife365</div>
+
+            <div class="mock-nav-right d-flex align-items-center">
+                <button class="btn btn-sm btn-outline-primary d-none d-lg-inline-block me-2"><i
+                        class="fas fa-home me-1"></i> Dashboard</button>
+                <button class="btn btn-sm btn-outline-success d-none d-lg-inline-block me-2"><i
+                        class="fas fa-play-circle me-1"></i> Tour</button>
+                <button class="btn btn-sm btn-outline-info d-none d-lg-inline-block me-3"><i
+                        class="fas fa-question-circle me-1"></i> FAQ</button>
+
+                <button class="mock-bell-btn me-3" id="mock-bell-btn" style="padding: 4px 10px;">
+                    <i class="fas fa-bell me-1"></i> Alerts
+                    <span id="unread-badge" class="nav-icon-badge">1</span>
+                </button>
+
+                <span class="navbar-text m-0 me-3 mock-status d-none d-lg-flex align-items-center text-muted"
+                    style="font-size: 0.9rem;">
+                    System Status: <span class="status-dot ms-2 me-1"></span> <span class="text-success">Online</span>
+                </span>
+
+                <button class="btn btn-sm btn-outline-secondary d-none d-lg-inline-block me-2"><i
+                        class="fas fa-cog"></i> Settings</button>
+                <button class="btn btn-sm btn-outline-danger d-none d-lg-inline-block"><i
+                        class="fas fa-sign-out-alt me-1"></i> Logout</button>
+            </div>
+        </div>
+
+        <!-- 5 Mock Sensors -->
+        <div class="mock-sensors" id="mock-sensors-container">
+            <div class="mock-card" id="card-temp">
+                <i class="fas fa-temperature-high" style="color: #e67e22;"></i>
+                <h4>Temperature</h4>
+                <div class="mock-value">
+                    <span id="val-temp">--</span><small class="text-muted fs-6"> °C</small>
+                </div>
+                <div class="mock-stats"><span>Low: <strong>18</strong></span><span>Avg:
+                        <strong>22</strong></span><span>High: <strong>26</strong></span></div>
+            </div>
+
+            <div class="mock-card" id="card-humid">
+                <i class="fas fa-tint" style="color: #27ae60;"></i>
+                <h4>Humidity</h4>
+                <div class="mock-value">
+                    <span id="val-humid">--</span><small class="text-muted fs-6"> %</small>
+                </div>
+                <div class="mock-stats"><span>Low: <strong>45</strong></span><span>Avg:
+                        <strong>52</strong></span><span>High: <strong>60</strong></span></div>
+            </div>
+
+            <div class="mock-card" id="card-water">
+                <i class="fas fa-water" style="color: #2980b9;"></i>
+                <h4>Moisture Level</h4>
+                <div class="mock-value">
+                    <span id="val-water">--</span><small class="text-muted fs-6"> %</small>
+                </div>
+                <div class="mock-stats"><span>Low: <strong>20</strong></span><span>Avg:
+                        <strong>58</strong></span><span>High: <strong>95</strong></span></div>
+            </div>
+
+            <div class="mock-card" id="card-light">
+                <i class="fas fa-sun" style="color: #f1c40f;"></i>
+                <h4>Brightness</h4>
+                <div class="mock-value">
+                    <span id="val-light">--</span><small class="text-muted fs-6"> %</small>
+                </div>
+                <div class="mock-stats"><span>Low: <strong>0</strong></span><span>Avg:
+                        <strong>49</strong></span><span>High: <strong>98</strong></span></div>
+            </div>
+
+            <div class="mock-card" id="card-gas">
+                <i class="fas fa-smog" style="color: #8e44ad;"></i>
+                <h4>CH4 Gas</h4>
+                <div class="mock-value">
+                    <span id="val-gas">--</span><small class="text-muted fs-6"> %</small>
+                </div>
+                <div class="mock-stats"><span>Low: <strong>0</strong></span><span>Avg:
+                        <strong>1</strong></span><span>High: <strong>2</strong></span></div>
+            </div>
+        </div>
+
+        <!-- Mock Charts Area with Tabs and Buttons -->
+        <div class="mock-card" id="card-charts">
+            <div class="mock-chart-header flex-wrap">
+                <h5 class="mb-2 mb-md-0">Sensor Trends</h5>
+                <div class="mock-chart-tools d-flex flex-wrap align-items-center gap-2 justify-content-end">
+                    <select class="form-select form-select-sm" style="width: auto;">
+                        <option value="live">Live</option>
+                        <option value="1h">Past Hour</option>
+                        <option value="1d">Past Day</option>
+                        <option value="1w">Past Week</option>
+                    </select>
+                    <button id="mock-filter-btn" class="btn btn-sm btn-outline-primary fw-bold"
+                        style="white-space: nowrap;">
+                        <i class="fas fa-filter me-1"></i> Filter
+                    </button>
+                    <button id="mock-ml-btn" class="btn btn-sm btn-outline-success fw-bold text-nowrap flex-shrink-0"
+                        style="letter-spacing: 0.5px;">
+                        <i class="fas fa-flask me-1"></i> Machine Learning Tool
+                    </button>
+                    <div class="input-group input-group-sm" style="width: auto;">
+                        <input type="date" class="form-control" title="Select date to export" value="2026-03-04">
+                        <button id="mock-export-btn" class="btn btn-outline-secondary">Export CSV</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mock-tabs" id="mock-tabs">
+                <span class="active">Temperature</span>
+                <span>Humidity</span>
+                <span>Moisture Level</span>
+                <span>Brightness</span>
+                <span>CH4 Gas</span>
+            </div>
+
+            <div class="mock-chart-container">
+                <canvas id="mockChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Guided Tooltips Dynamic Position -->
+        <div class="tour-guide" id="tooltip-1" style="width: 280px;">
+            <strong>5 Live Sensors & Stats</strong><br>
+            Sensors refresh seamlessly while tracking daily lows and highs.
+        </div>
+
+        <div class="tour-guide" id="tooltip-2" style="width: 280px;">
+            <strong>Hub for Smart Alerts</strong><br>
+            Cards blink red and a notification logs to the Alerts Bell if thresholds cross.
+        </div>
+
+        <div class="tour-guide" id="tooltip-3" style="width: 250px;">
+            <strong>Customize Thresholds</strong><br>
+            Use the Filter button to set personalized limits for when alerts trigger for your specific crop.
+        </div>
+
+        <div class="tour-guide" id="tooltip-4" style="width: 290px;">
+            <strong>Analytics, Machine Learning & Export</strong><br>
+            Cycle historical graphs, test the new Machine Learning Tool, and export raw data with one click with the
+            Researcher and Premium Tier.
+        </div>
+
+        <div class="tour-guide" id="tooltip-5" style="width: 310px;">
+            <strong>Global Navigation Bar</strong><br>
+            Quickly return to the Dashboard, restart this Tour, access the FAQ, check System Status, open Settings, or
+            securely Logout.
+        </div>
+
+        <!-- Progress and Actions -->
+        <div class="tour-progress" id="progress-container">
+            <div class="tour-progress-bar" id="progress-bar"></div>
+        </div>
+
+        <div class="tour-controls">
+            <button class="btn btn-primary" id="btn-start" onclick="startTour()"
+                style="font-family: 'Outfit', sans-serif; font-weight: 600; padding: 10px 30px; border-radius: 50px; z-index: 70; position: relative;">
+                Start Tour <i class="fas fa-play ms-2"></i>
+            </button>
+            <button class="btn btn-secondary d-none" id="btn-back" onclick="prevTourStep()"
+                style="font-family: 'Outfit', sans-serif; font-weight: 600; padding: 10px 30px; border-radius: 50px; z-index: 70; position: relative; margin-right: 10px;">
+                <i class="fas fa-arrow-left me-2"></i> Backward
+            </button>
+            <button class="btn btn-success d-none" id="btn-next" onclick="nextTourStep()"
+                style="font-family: 'Outfit', sans-serif; font-weight: 600; padding: 10px 30px; border-radius: 50px; z-index: 70; position: relative;">
+                Forward <i class="fas fa-arrow-right ms-2"></i>
+            </button>
+            <form method="POST" action="{% url 'intro' %}" style="display: inline-block; margin: 0;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-light d-none" id="btn-dashboard"
+                    style="font-family: 'Outfit', sans-serif; font-weight: 600; padding: 10px 30px; border-radius: 50px; z-index: 70; position: relative; margin-left: 10px; border-width: 2px;">
+                    <i class="fas fa-sign-out-alt me-2"></i> Dashboard
+                </button>
+                <button type="submit" class="btn btn-got-it" id="btn-finish">
+                    Take me to my Dashboard <i class="fas fa-arrow-right ms-2"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            initChart();
+        });
+
+        // Elements
+        const valTemp = document.getElementById('val-temp');
+        const valHumid = document.getElementById('val-humid');
+        const valWater = document.getElementById('val-water');
+        const valLight = document.getElementById('val-light');
+        const valGas = document.getElementById('val-gas');
+
+        const cardGas = document.getElementById('card-gas');
+        const unreadBadge = document.getElementById('unread-badge');
+        const mockBellBtn = document.getElementById('mock-bell-btn');
+
+        const mockFilterBtn = document.getElementById('mock-filter-btn');
+        const mockExportBtn = document.getElementById('mock-export-btn');
+
+        const tooltip1 = document.getElementById('tooltip-1');
+        const tooltip2 = document.getElementById('tooltip-2');
+        const tooltip3 = document.getElementById('tooltip-3');
+        const tooltip4 = document.getElementById('tooltip-4');
+        const tooltip5 = document.getElementById('tooltip-5');
+
+        const progressBar = document.getElementById('progress-bar');
+        const progressContainer = document.getElementById('progress-container');
+        const btnStart = document.getElementById('btn-start');
+        const btnBack = document.getElementById('btn-back');
+        const btnNext = document.getElementById('btn-next');
+        const btnFinish = document.getElementById('btn-finish');
+        const btnDashboard = document.getElementById('btn-dashboard');
+
+        const demoOverlay = document.getElementById('demo-overlay');
+
+        let tempInterval;
+        let mockChartInstance;
+        let tourStep = 0;
+
+        function initChart() {
+            const ctx = document.getElementById('mockChart').getContext('2d');
+            mockChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['10:00', '10:05', '10:10', '10:15', '10:20', '10:25', '10:30'],
+                    datasets: [{
+                        label: 'Temperature (°C)',
+                        data: [22.1, 23.4, 23.8, 24.5, 24.2, 24.8, 25.1],
+                        borderColor: 'rgba(230, 126, 34, 1)',
+                        backgroundColor: 'rgba(230, 126, 34, 0.2)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    animation: { duration: 1000 },
+                    scales: {
+                        y: { suggestedMin: 15, suggestedMax: 35 }
+                    }
+                }
+            });
+        }
+
+        function clearFocus() {
+            document.querySelectorAll('.active-focus').forEach(el => el.classList.remove('active-focus'));
+            // Hide all tooltips
+            [tooltip1, tooltip2, tooltip3, tooltip4, tooltip5].forEach(t => t.style.opacity = '0');
+
+            // Clean up state from any step
+            cardGas.classList.remove('alert-active');
+            unreadBadge.classList.remove('show');
+            mockExportBtn.classList.add('btn-outline-secondary');
+            mockExportBtn.classList.remove('btn-success', 'text-white');
+            mockExportBtn.style.boxShadow = "none";
+            if (document.getElementById('mock-ml-btn')) {
+                document.getElementById('mock-ml-btn').classList.add('btn-outline-success');
+                document.getElementById('mock-ml-btn').classList.remove('btn-success', 'text-white');
+                document.getElementById('mock-ml-btn').style.boxShadow = "none";
+            }
+        }
+
+        function positionTooltip(tooltip, target, placement) {
+            if (!target) return;
+            const targetRect = target.getBoundingClientRect();
+            const container = document.getElementById('demo-box');
+            const containerRect = container.getBoundingClientRect();
+
+            let top, left;
+
+            if (placement === 'bottom') {
+                top = targetRect.bottom - containerRect.top + 15;
+                left = targetRect.left - containerRect.left + (targetRect.width / 2) - (tooltip.offsetWidth / 2);
+                tooltip.className = 'tour-guide top-arrow';
+            } else if (placement === 'bottom-left') {
+                top = targetRect.bottom - containerRect.top + 15;
+                left = targetRect.right - containerRect.left - tooltip.offsetWidth + 15;
+                tooltip.className = 'tour-guide top-arrow-end';
+            } else if (placement === 'bottom-right') {
+                top = targetRect.bottom - containerRect.top + 15;
+                left = targetRect.right - containerRect.left - tooltip.offsetWidth + 15; // Shift to neatly align with the right-most edge of target
+                tooltip.className = 'tour-guide top-arrow-end';
+            } else if (placement === 'bottom-alert') {
+                // NEW BLOCK: Shifts the tooltip box 40px further to the left
+                top = targetRect.bottom - containerRect.top + 15;
+                left = targetRect.right - containerRect.left - tooltip.offsetWidth - 60;
+                tooltip.className = 'tour-guide top-arrow-alert';
+            }
+            else if (placement === 'top') {
+                top = targetRect.top - containerRect.top - tooltip.offsetHeight - 15;
+                left = targetRect.left - containerRect.left + (targetRect.width / 2) - (tooltip.offsetWidth / 2);
+                tooltip.className = 'tour-guide bottom-arrow';
+            }
+
+            if (left < 10) left = 10;
+            if (left + tooltip.offsetWidth > containerRect.width - 10) left = containerRect.width - tooltip.offsetWidth - 10;
+
+            tooltip.style.top = top + 'px';
+            tooltip.style.left = left + 'px';
+            tooltip.style.opacity = '1';
+        }
+
+        function startTour() {
+            btnStart.classList.add('d-none');
+            btnNext.classList.remove('d-none');
+            btnDashboard.classList.remove('d-none');
+            progressContainer.style.opacity = '1';
+            demoOverlay.classList.add('active');
+            simulateLiveSensors();
+            nextTourStep();
+        }
+
+        function prevTourStep() {
+            if (tourStep > 1) {
+                tourStep -= 2;
+                nextTourStep();
+            }
+        }
+
+        function nextTourStep() {
+            tourStep++;
+            clearFocus();
+            if (tourStep === 1) {
+                progressBar.style.width = '25%';
+                btnBack.classList.add('d-none');
+                btnNext.classList.remove('d-none');
+                btnNext.innerHTML = 'Forward <i class="fas fa-arrow-right ms-2"></i>';
+                document.querySelectorAll('.mock-sensors .mock-card').forEach(c => c.classList.add('active-focus'));
+                positionTooltip(tooltip1, document.getElementById('mock-sensors-container'), 'bottom');
+            } else if (tourStep === 2) {
+                progressBar.style.width = '50%';
+                btnBack.classList.remove('d-none');
+                valGas.innerText = '12.5';
+                cardGas.classList.add('alert-active');
+                cardGas.classList.add('active-focus');
+                mockBellBtn.classList.add('active-focus');
+                unreadBadge.classList.add('show');
+                positionTooltip(tooltip2, mockBellBtn, 'bottom-alert');
+            } else if (tourStep === 3) {
+                progressBar.style.width = '75%';
+                valGas.innerText = '0.8';
+                mockFilterBtn.classList.add('active-focus');
+                positionTooltip(tooltip3, mockFilterBtn, 'bottom-right');
+            } else if (tourStep === 4) {
+                progressBar.style.width = '80%';
+                document.getElementById('card-charts').classList.add('active-focus');
+                mockExportBtn.classList.remove('btn-outline-secondary');
+                mockExportBtn.classList.add('btn-success', 'text-white');
+                mockExportBtn.style.boxShadow = "0 0 10px rgba(40, 167, 69, 0.4)";
+                if (document.getElementById('mock-ml-btn')) {
+                    document.getElementById('mock-ml-btn').classList.remove('btn-outline-success');
+                    document.getElementById('mock-ml-btn').classList.add('btn-success', 'text-white');
+                    document.getElementById('mock-ml-btn').style.boxShadow = "0 0 10px rgba(40, 167, 69, 0.4)";
+                }
+                positionTooltip(tooltip4, mockExportBtn, 'bottom-right');
+                btnNext.innerHTML = 'Forward <i class="fas fa-arrow-right ms-2"></i>';
+            } else if (tourStep === 5) {
+                progressBar.style.width = '100%';
+
+                document.getElementById('mock-navbar').classList.add('active-focus');
+                positionTooltip(tooltip5, document.getElementById('mock-navbar'), 'bottom');
+                btnNext.innerHTML = 'Finish <i class="fas fa-check ms-2"></i>';
+            } else if (tourStep === 6) {
+                btnBack.classList.add('d-none');
+                btnNext.classList.add('d-none');
+                btnDashboard.classList.add('d-none');
+                demoOverlay.classList.remove('active');
+                document.getElementById('mock-navbar').classList.remove('active-focus');
+
+                clearInterval(tempInterval);
+                btnFinish.classList.add('visible');
+            }
+        }
+
+        // Live fluctuation simulator
+        function simulateLiveSensors() {
+            let t = 24.5;
+            let h = 55.0;
+            let w = 45.2;
+            let l = 80.0;
+            let g = 0.5;
+
+            // Initial setting
+            valTemp.innerText = t.toFixed(1);
+            valHumid.innerText = h.toFixed(1);
+            valWater.innerText = w.toFixed(1);
+            valLight.innerText = l.toFixed(1);
+            valGas.innerText = g.toFixed(1);
+
+            tempInterval = setInterval(() => {
+                // random wiggle
+                t += (Math.random() - 0.5) * 0.4;
+                h += (Math.random() - 0.5) * 1.0;
+                w += (Math.random() - 0.5) * 0.2;
+                l += (Math.random() - 0.5) * 2.0;
+
+                if (parseFloat(valGas.innerText) < 5.0) {
+                    g += (Math.random() - 0.5) * 0.1;
+                    if (g < 0) g = 0;
+                    valGas.innerText = g.toFixed(1);
+                }
+
+                // Add data to chart every second
+                if (mockChartInstance) {
+                    const now = new Date();
+                    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    mockChartInstance.data.labels.push(timeStr);
+                    mockChartInstance.data.datasets[0].data.push(t);
+
+                    if (mockChartInstance.data.labels.length > 10) {
+                        mockChartInstance.data.labels.shift();
+                        mockChartInstance.data.datasets[0].data.shift();
+                    }
+                    mockChartInstance.update();
+                }
+
+                valTemp.innerText = t.toFixed(1);
+                valHumid.innerText = h.toFixed(1);
+                valWater.innerText = w.toFixed(1);
+
+                // Keep light strictly 0-100
+                if (l > 100) l = 100; if (l < 0) l = 0;
+                valLight.innerText = l.toFixed(1);
+            }, 1000);
+        }
+    </script>
+</body>
+
+</html>

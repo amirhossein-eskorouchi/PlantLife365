@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PlantLife365 - Welcome Back</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@400;500&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(-45deg, #11998e, #38ef7d, #0f9b0f, #7FFF00);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            overflow: hidden;
+        }
+
+        @keyframes gradientBG {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        /* Abstract Leaves background */
+        .leaf {
+            position: absolute;
+            width: 15rem;
+            height: 15rem;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0));
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 50% 0 50% 0;
+            animation: float 8s ease-in-out infinite alternate;
+            z-index: 0;
+        }
+
+        .leaf-1 {
+            top: 10%;
+            left: 10%;
+            animation-delay: 0s;
+            transform: rotate(15deg);
+        }
+
+        .leaf-2 {
+            bottom: 10%;
+            right: 10%;
+            animation-delay: -4s;
+            transform: rotate(105deg);
+        }
+
+        .leaf-3 {
+            top: 40%;
+            right: 20%;
+            width: 8rem;
+            height: 8rem;
+            animation-delay: -2s;
+            transform: rotate(-25deg);
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0px) rotate(15deg) scale(1.0);
+            }
+
+            100% {
+                transform: translateY(-30px) rotate(25deg) scale(1.05);
+            }
+        }
+
+        .login-container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 450px;
+            padding: 3rem;
+            background: rgba(255, 255, 255, 0.85);
+            /* Frosty white */
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            transform: translateY(20px);
+            opacity: 0;
+            animation: slideUpFade 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes slideUpFade {
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .login-header .icon {
+            font-size: 3rem;
+            color: #11998e;
+            margin-bottom: 10px;
+            display: inline-block;
+            animation: pulse 2s infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                text-shadow: 0 0 10px rgba(17, 153, 142, 0.2);
+            }
+
+            100% {
+                transform: scale(1.1);
+                text-shadow: 0 0 20px rgba(17, 153, 142, 0.5);
+            }
+        }
+
+        .login-header h2 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            color: #2c3e50;
+            margin: 0;
+            letter-spacing: -0.5px;
+        }
+
+        .login-header p {
+            color: #7f8c8d;
+            font-size: 0.95rem;
+            margin-top: 5px;
+        }
+
+        .form-floating>label {
+            color: #95a5a6;
+            font-size: 0.95rem;
+        }
+
+        .form-control {
+            border-radius: 12px;
+            border: 2px solid #e0e6ed;
+            padding: 1rem 0.75rem;
+            height: calc(3.5rem + 2px);
+            background-color: rgba(255, 255, 255, 0.9);
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            color: #2c3e50;
+        }
+
+        .form-control:focus {
+            box-shadow: 0 0 0 4px rgba(17, 153, 142, 0.15);
+            border-color: #11998e;
+            background-color: #ffffff;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            border: none;
+            border-radius: 12px;
+            padding: 14px 20px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            letter-spacing: 0.5px;
+            width: 100%;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(17, 153, 142, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(to right, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0));
+            transform: skewX(-25deg);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(17, 153, 142, 0.4);
+        }
+
+        .btn-primary:hover::after {
+            animation: shine 0.75s;
+        }
+
+        @keyframes shine {
+            100% {
+                left: 200%;
+            }
+        }
+
+        .alert-error {
+            background-color: rgba(231, 76, 60, 0.1);
+            color: #e74c3c;
+            border: 1px solid rgba(231, 76, 60, 0.3);
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            20%,
+            60% {
+                transform: translateX(-5px);
+            }
+
+            40%,
+            80% {
+                transform: translateX(5px);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="leaf leaf-1"></div>
+    <div class="leaf leaf-2"></div>
+    <div class="leaf leaf-3"></div>
+
+    <div class="login-container">
+        <div class="login-header">
+            <i class="fas fa-leaf icon"></i>
+            <h2>PlantLife365</h2>
+            <p>Sign in to monitor your ecosystem</p>
+        </div>
+
+        {% if error %}
+        <div class="alert-error">
+            <i class="fas fa-exclamation-circle"></i>
+            <div>{{ error }}</div>
+        </div>
+        {% endif %}
+
+        {% if success %}
+        <div class="alert-error"
+            style="background-color: rgba(46, 204, 113, 0.1); color: #27ae60; border-color: rgba(46, 204, 113, 0.3);">
+            <i class="fas fa-check-circle"></i>
+            <div>{{ success }}</div>
+        </div>
+        {% endif %}
+
+        <form method="POST" action="{% url 'login' %}">
+            {% csrf_token %}
+            <div class="form-floating mb-4">
+                <input type="text" class="form-control" id="username" name="username" placeholder="Username" required
+                    autofocus>
+                <label for="username"><i class="fas fa-user ms-1 me-2 text-muted"></i>Username</label>
+            </div>
+
+            <div class="form-floating mb-5 position-relative">
+                <input type="password" class="form-control" id="password" name="password" placeholder="Password"
+                    required>
+                <label for="password"><i class="fas fa-lock ms-1 me-2 text-muted"></i>Password</label>
+                <button type="button"
+                    class="btn btn-link position-absolute top-50 end-0 translate-middle-y text-muted text-decoration-none"
+                    id="togglePassword" style="z-index: 10; padding-right: 15px;">
+                    <i class="fas fa-eye"></i>
+                </button>
+            </div>
+
+            <div class="text-end mb-4 pr-1">
+                <a href="{% url 'password_reset' %}" class="text-decoration-none"
+                    style="color: #11998e; font-size: 0.9rem;">Forgot Password?</a>
+            </div>
+
+            <button type="submit" class="btn btn-primary mb-4">
+                Sign In <i class="fas fa-arrow-right ms-2 align-middle" style="font-size: 0.9rem;"></i>
+            </button>
+            <div class="text-center">
+                <span class="text-muted">Don't have an account?</span>
+                <a href="{% url 'signup' %}" class="fw-bold text-decoration-none" style="color: #11998e;">Create one
+                    here!</a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const togglePassword = document.getElementById('togglePassword');
+        const password = document.getElementById('password');
+        const icon = togglePassword.querySelector('i');
+
+        function showPassword() {
+            password.setAttribute('type', 'text');
+            icon.classList.replace('fa-eye', 'fa-eye-slash');
+        }
+
+        function hidePassword() {
+            password.setAttribute('type', 'password');
+            icon.classList.replace('fa-eye-slash', 'fa-eye');
+        }
+
+        togglePassword.addEventListener('mousedown', showPassword);
+        togglePassword.addEventListener('mouseup', hidePassword);
+        togglePassword.addEventListener('mouseleave', hidePassword);
+        togglePassword.addEventListener('touchstart', (e) => { e.preventDefault(); showPassword(); });
+        togglePassword.addEventListener('touchend', hidePassword);
+    </script>
+</body>
+
+</html>

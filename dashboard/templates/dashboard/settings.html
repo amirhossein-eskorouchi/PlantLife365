@@ -1,0 +1,142 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Device Settings{% endblock %}
+
+{% block content %}
+{% block system_status %}{% endblock %}
+<div class="row justify-content-center mt-4">
+    <div class="col-md-10">
+        <div class="card shadow-sm border-0 rounded-3">
+            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
+                <h4 class="mb-0 text-dark"><i class="fas fa-microchip me-2 text-primary"></i>Device Management</h4>
+                <div>
+                    <a href="{% url 'add_device' %}" class="btn btn-primary btn-sm me-2"><i
+                            class="fas fa-plus me-1"></i> Pair
+                        Device</a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if messages %}
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+                {% endif %}
+
+                {% if devices %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Device ID</th>
+                                <th>Alias / Name</th>
+                                <th>Status</th>
+                                <th>Added On</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for device in devices %}
+                            <tr>
+                                <td><strong>{{ device.device_id }}</strong></td>
+                                <td>{{ device.name|default:"<em class='text-muted'>No Alias</em>"|safe }}</td>
+                                <td>
+                                    {% if device.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ device.created_at|date:"M d, Y" }}</td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal"
+                                        data-bs-target="#editModal{{ device.id }}">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                    <form action="{% url 'delete_device' device.id %}" method="POST" class="d-inline"
+                                        onsubmit="return confirm('Are you sure you want to unpair this device? This will not delete its historical data.');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash-alt"></i> Delete
+                                        </button>
+                                    </form>
+
+                                    <!-- Edit Modal properly nested inside the action cell -->
+                                    <div class="modal fade" id="editModal{{ device.id }}" tabindex="-1"
+                                        aria-hidden="true" style="text-align: left;">
+                                        <div class="modal-dialog">
+                                            <form method="POST" action="{% url 'edit_device' device.id %}">
+                                                {% csrf_token %}
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Edit Device</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                            aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body text-start">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Device Alias / Name</label>
+                                                            <input type="text" name="name" class="form-control"
+                                                                value="{{ device.name|default:'' }}"
+                                                                placeholder="e.g. Front Porch Sensor">
+                                                        </div>
+                                                        <div class="mb-3 form-check">
+                                                            {% if device.is_active %}
+                                                            <input type="checkbox" class="form-check-input"
+                                                                name="is_active" id="active{{ device.id }}" checked>
+                                                            {% else %}
+                                                            <input type="checkbox" class="form-check-input"
+                                                                name="is_active" id="active{{ device.id }}">
+                                                            {% endif %}
+                                                            <label class="form-check-label fw-bold text-success" for="active{{ device.id }}">
+                                                                Device is Active and Monitoring
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary"
+                                                            data-bs-dismiss="modal">Cancel</button>
+                                                        <button type="submit" class="btn btn-primary">Save
+                                                            Changes</button>
+                                                    </div>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-satellite-dish fa-3x text-muted mb-3"></i>
+                    <h5>No Devices Connected</h5>
+                    <p class="text-muted">You haven't paired any hardware devices yet.</p>
+                    <a href="{% url 'add_device' %}" class="btn btn-primary mt-2">Pair a Device Now</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row justify-content-center mt-4 mb-5">
+    <div class="col-md-10">
+        <div class="card shadow-sm border-0 rounded-3">
+            <div class="card-header bg-white border-bottom py-3">
+                <h4 class="mb-0 text-dark"><i class="fas fa-info-circle me-2 text-info"></i>Help & Support</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Get familiar with the dashboard features by taking our quick interactive
+                    tour.</p>
+                <a href="{% url 'intro' %}" class="btn btn-primary"><i class="fas fa-play-circle me-2"></i>Re-watch
+                    Tutorial</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

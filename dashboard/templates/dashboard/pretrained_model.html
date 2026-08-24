@@ -1,0 +1,270 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Pretrained Model Analyst{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center bg-white p-4 rounded-4 shadow-sm border-0">
+                <div>
+                    <h2 class="fw-bold text-dark mb-1">
+                        <i class="fas fa-project-diagram text-info me-2"></i>AI Predictive Analytics
+                    </h2>
+                    <p class="text-muted mb-0">Analyzing plant life data with comparison to predicted patterns based on historical data.</p>
+                </div>
+                <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary rounded-pill px-4">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger border-0 shadow-sm rounded-4 p-4 mb-4">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+            <div>
+                <h5 class="fw-bold mb-1">Analysis Error</h5>
+                <p class="mb-0">{{ error }}</p>
+            </div>
+        </div>
+    </div>
+    {% else %}
+
+    <div class="row g-4 mb-4">
+        <!-- Stats Cards -->
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="bg-primary bg-opacity-10 p-3 rounded-3">
+                            <i class="fas fa-database text-primary fa-lg"></i>
+                        </div>
+                        <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3">Dataset</span>
+                    </div>
+                    <h3 class="fw-bold mb-1">{{ stats.row_count }}</h3>
+                    <p class="text-muted small mb-0 text-uppercase fw-bold">Total Rows Analyzed</p>
+                </div>
+                <div class="progress" style="height: 4px;">
+                    <div class="progress-bar bg-primary" style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="bg-info bg-opacity-10 p-3 rounded-3">
+                            <i class="fas fa-calendar-alt text-info fa-lg"></i>
+                        </div>
+                    </div>
+                    <h6 class="fw-bold mb-1">{{ stats.start_date }}</h6>
+                    <p class="text-muted small mb-0 text-uppercase fw-bold">Data Range Start</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="bg-warning bg-opacity-10 p-3 rounded-3">
+                            <i class="fas fa-microchip text-warning fa-lg"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold mb-1">{{ stats.r2 }}</h3>
+                    <p class="text-muted small mb-0 text-uppercase fw-bold">Similarity to Predicted (R²)</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="bg-danger bg-opacity-10 p-3 rounded-3">
+                            <i class="fas fa-bullseye text-danger fa-lg"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold mb-1">{{ stats.rmse }}</h3>
+                    <p class="text-muted small mb-0 text-uppercase fw-bold">Comparison Deviation (RMSE)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Main Charts Area -->
+        <div class="col-lg-12">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                <div class="card-header bg-white py-3 border-0">
+                    <h5 class="fw-bold mb-0 text-dark">Temperature: Actual vs Predicted</h5>
+                </div>
+                <div class="card-body">
+                    <div id="mainChart" style="height: 600px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Individual Sensor Breakdown -->
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card-header bg-white py-3 border-0">
+                    <h5 class="fw-bold mb-0 text-dark">Soil Moisture vs Gas Levels</h5>
+                </div>
+                <div class="card-body">
+                    <div id="moistureGasChart" style="height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card-header bg-white py-3 border-0">
+                    <h5 class="fw-bold mb-0 text-dark">Light Intensity Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <div id="lightChart" style="height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    body { background-color: #f8f9fa; }
+    .card { transition: transform 0.3s ease; }
+    .card:hover { transform: translateY(-5px); }
+</style>
+
+<script src="https://cdn.plot.ly/plotly-2.21.0.min.js"></script>
+<script>
+    {% if not error %}
+    const rawData = JSON.parse('{{ chart_data_json|safe }}');
+    const pastDate = rawData.predicted_date || 'Predicted';
+    
+    // Main Multi-Axis Chart (Actual vs Predicted Temperature)
+    const mainTraceActual = {
+        x: rawData.labels,
+        y: rawData.temp_actual,
+        name: 'Actual Temp (°C)',
+        type: 'scatter',
+        mode: 'markers',
+        marker: { color: '#e67e22', size: 4, opacity: 0.6 }
+    };
+    const mainTracePredicted = {
+        x: rawData.labels,
+        y: rawData.temp_predicted,
+        name: pastDate + ' Temp (°C)',
+        type: 'scatter',
+        mode: 'lines',
+        line: { color: '#d35400', width: 2, dash: 'dot' }
+    };
+    const mainTraceHumidActual = {
+        x: rawData.labels,
+        y: rawData.humid_actual,
+        name: 'Actual Humid (%)',
+        yaxis: 'y2',
+        type: 'scatter',
+        line: { color: '#27ae60', width: 2, opacity: 0.3 }
+    };
+    const mainTraceHumidPredicted = {
+        x: rawData.labels,
+        y: rawData.humid_predicted,
+        name: pastDate + ' Humid (%)',
+        yaxis: 'y2',
+        type: 'scatter',
+        mode: 'lines',
+        line: { color: '#2ecc71', width: 1.5, dash: 'dot' }
+    };
+
+    const mainLayout = {
+        title: 'Environmental Comparison Analysis (Live vs AI Model)',
+        xaxis: { title: 'Time' },
+        yaxis: { title: 'Temperature (°C)', titlefont: {color: '#e67e22'}, tickfont: {color: '#e67e22'} },
+        yaxis2: {
+            title: 'Humidity (%)',
+            titlefont: {color: '#27ae60'},
+            tickfont: {color: '#27ae60'},
+            overlaying: 'y',
+            side: 'right'
+        },
+        legend: { orientation: 'h', y: -0.2 },
+        margin: { l: 50, r: 50, b: 100, t: 50, pad: 4 },
+        hovermode: 'x unified',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        paper_bgcolor: 'rgba(0,0,0,0)'
+    };
+
+    Plotly.newPlot('mainChart', [mainTraceActual, mainTracePredicted, mainTraceHumidActual, mainTraceHumidPredicted], mainLayout, {responsive: true});
+
+    // Moisture vs Gas (Now with Predicted Comparison)
+    const traceMoistureActual = {
+        x: rawData.labels,
+        y: rawData.moisture_actual,
+        name: 'Actual Moisture (%)',
+        fill: 'tozeroy',
+        type: 'scatter',
+        line: { color: '#2980b9', opacity: 0.5 }
+    };
+    const traceMoisturePredicted = {
+        x: rawData.labels,
+        y: rawData.moisture_predicted,
+        name: pastDate + ' Moisture (%)',
+        type: 'scatter',
+        mode: 'lines',
+        line: { color: '#3498db', width: 2, dash: 'dot' }
+    };
+    const traceGasActual = {
+        x: rawData.labels,
+        y: rawData.gas_actual,
+        name: 'Actual CH4 (%)',
+        yaxis: 'y2',
+        type: 'scatter',
+        line: { color: '#8e44ad', opacity: 0.5 }
+    };
+    const traceGasPredicted = {
+        x: rawData.labels,
+        y: rawData.gas_predicted,
+        name: pastDate + ' CH4 (%)',
+        yaxis: 'y2',
+        type: 'scatter',
+        mode: 'lines',
+        line: { color: '#9b59b6', width: 2, dash: 'dot' }
+    };
+
+    const moistureGasLayout = {
+        margin: { l: 40, r: 40, b: 40, t: 40 },
+        yaxis2: { overlaying: 'y', side: 'right' },
+        legend: { orientation: 'h', y: -0.3 },
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        paper_bgcolor: 'rgba(0,0,0,0)'
+    };
+    Plotly.newPlot('moistureGasChart', [traceMoistureActual, traceMoisturePredicted, traceGasActual, traceGasPredicted], moistureGasLayout, {responsive: true});
+
+    // Light Chart (Now with Predicted Comparison)
+    const traceLightActual = {
+        x: rawData.labels,
+        y: rawData.light_actual,
+        type: 'scatter',
+        mode: 'markers',
+        name: 'Actual Brightness (%)',
+        marker: { color: '#f1c40f', size: 3 }
+    };
+    const traceLightPredicted = {
+        x: rawData.labels,
+        y: rawData.light_predicted,
+        type: 'scatter',
+        mode: 'lines',
+        name: pastDate + ' Brightness (%)',
+        line: { color: '#f39c12', width: 2, dash: 'dot' }
+    };
+    const lightLayout = {
+        margin: { l: 40, r: 40, b: 40, t: 40 },
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        paper_bgcolor: 'rgba(0,0,0,0)'
+    };
+    Plotly.newPlot('lightChart', [traceLightActual, traceLightPredicted], lightLayout, {responsive: true});
+    {% endif %}
+</script>
+{% endblock %}

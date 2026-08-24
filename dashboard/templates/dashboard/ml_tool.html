@@ -1,0 +1,723 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block title %}ML Exploratory Tool{% endblock %}
+
+{% block dashboard_nav_btn %}{% endblock %}
+
+{% block content %}
+<style>
+  .ml-card {
+    border-radius: 1rem;
+    transition: transform 0.2s;
+  }
+
+  .ml-card:hover {
+    transform: translateY(-2px);
+  }
+
+  .step-badge {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: #27ae60;
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-right: 10px;
+  }
+
+  .feature-list-container {
+    max-height: 500px;
+    overflow-y: auto;
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    background-color: #fcfcfc;
+  }
+
+
+
+  #reportArea {
+    min-height: 200px;
+  }
+
+  .plot-container {
+    background: white;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+
+  .CodeMirror {
+    height: 450px;
+    font-family: 'Fira Code', 'Cascadia Code', 'Ubuntu Mono', monospace;
+    font-size: 0.95rem;
+    border-radius: 0.5rem;
+  }
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
+
+<div class="container-fluid py-4">
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h2 class="fw-bold text-dark"><i class="fas fa-brain text-success me-2"></i>Machine Learning Exploratory &
+            Modeling Tool
+          </h2>
+          <p class="text-muted">Explore data, visualize correlations, and train models in four easy steps.</p>
+        </div>
+        <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#mlHelpModal">
+          <i class="fas fa-question-circle me-1"></i> Help
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <!-- Step 1: Upload -->
+    <div class="col-lg-4">
+      <div class="card h-100 ml-card shadow-sm border-0">
+        <div class="card-header bg-dark text-white py-3">
+          <h5 class="mb-0 fw-bold d-flex align-items-center">
+            <span class="step-badge bg-white text-dark me-2" style="width:30px; height:30px;">1</span>
+            <i class="fas fa-upload me-2"></i>Dataset Upload
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="upload-zone p-4 border-dashed rounded-3 text-center bg-light mb-3">
+            <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+            <input id="fileInput" type="file" accept=".csv,.xls,.xlsx" class="form-control" />
+            <p class="small text-muted mt-2 mb-0">Supported: CSV, Excel (.xls, .xlsx)</p>
+          </div>
+          <div id="fileInfo" class="d-none">
+            <div class="alert alert-success d-flex align-items-center small py-2">
+              <i class="fas fa-check-circle me-2"></i>
+              <span id="fileNameDisplay"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Quick Visualizations -->
+    <div class="col-lg-8">
+      <div class="card h-100 ml-card shadow-sm border-0">
+        <div class="card-header bg-dark text-white py-3">
+          <h5 class="mb-0 fw-bold d-flex align-items-center">
+            <span class="step-badge bg-white text-dark me-2" style="width:30px; height:30px;">2</span>
+            <i class="fas fa-chart-line me-2"></i>Quick Visualizations
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="row g-3 mb-3">
+            <div class="col-md-4 d-flex flex-column">
+              <div>
+                <label class="form-label small text-muted fw-bold">Y-AXIS (RESPONSE)</label>
+                <select id="pairResponse" class="form-select mb-3"></select>
+              </div>
+              <button id="btnPair" class="btn btn-primary w-100 mt-auto py-2">
+                <i class="fas fa-chart-line me-2"></i> Plot Selected
+              </button>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label small text-muted fw-bold">X-AXIS (FEATURES)</label>
+              <div id="numericVars" class="d-flex flex-column gap-2 border rounded-3 p-3 bg-white shadow-sm"
+                style="max-height: 350px; overflow-y: auto;">
+                <p class="text-muted small text-center my-4 italic">Upload a file to see variables</p>
+              </div>
+            </div>
+          </div>
+          <div id="plotsArea" class="row g-3" style="max-height: 850px; overflow-y: auto;">
+            <p class="text-muted small text-center my-4 italic">Add plots to see data correlations</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Step 3: Modeling Options -->
+    <div class="col-lg-12">
+      <div class="card ml-card shadow-sm border-0">
+        <div class="card-header bg-dark text-white py-3">
+          <h5 class="mb-0 fw-bold d-flex align-items-center">
+            <span class="step-badge bg-white text-dark me-2" style="width:30px; height:30px;">3</span>
+            <i class="fas fa-cog me-2"></i>Modeling Options
+          </h5>
+        </div>
+        <div class="card-body">
+
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-bold small text-uppercase text-muted">Response Variable (Target)</label>
+              <select id="responseVar" class="form-select border-2"></select>
+
+              <label class="form-label fw-bold small text-uppercase text-muted mt-4">Train / Test Split</label>
+              <input id="trainSplit" type="range" min="50" max="95" value="80" class="form-range" />
+              <div class="d-flex justify-content-between small text-muted">
+                <span>Train: <span id="trainPct" class="fw-bold text-success">80</span>%</span>
+                <span>Test: <span id="testPct" class="fw-bold text-primary">20</span>%</span>
+              </div>
+
+              <label class="form-label fw-bold small text-uppercase text-muted mt-4">Random Seed</label>
+              <input id="randomSeed" type="number" value="42" class="form-control border-2" />
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-bold small text-uppercase text-muted">Select Input Features</label>
+              <div id="featuresList" class="feature-list-container">
+                <p class="text-muted small text-center my-4 italic">Upload a file to see variables</p>
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-bold small text-uppercase text-muted">Regression Models</label>
+              <div class="d-flex flex-column gap-2">
+                <div class="form-check bg-light px-3 py-2 rounded-2 border">
+                  <input class="form-check-input model-checkbox" type="checkbox" value="linear" id="m_linear">
+                  <label class="form-check-label" for="m_linear">Linear Regression</label>
+                </div>
+                <div class="form-check bg-light px-3 py-2 rounded-2 border">
+                  <input class="form-check-input model-checkbox" type="checkbox" value="random_forest" id="m_rf">
+                  <label class="form-check-label" for="m_rf">Random Forest</label>
+                </div>
+                <div class="form-check bg-light px-3 py-2 rounded-2 border">
+                  <input class="form-check-input model-checkbox" type="checkbox" value="gbm" id="m_gbm">
+                  <label class="form-check-label" for="m_gbm">Gradient Boosting</label>
+                </div>
+                <div class="form-check bg-light px-3 py-2 rounded-2 border">
+                  <input class="form-check-input model-checkbox" type="checkbox" value="svr" id="m_svr">
+                  <label class="form-check-label" for="m_svr">Support Vector Regression</label>
+                </div>
+                <div class="form-check bg-light px-3 py-2 rounded-2 border">
+                  <input class="form-check-input model-checkbox" type="checkbox" value="knn" id="m_knn">
+                  <label class="form-check-label" for="m_knn">K-Nearest Neighbors Regression</label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 d-flex gap-2">
+            <button id="btnAnalyze" class="btn btn-success btn-lg px-5 py-3 fw-bold shadow-sm"
+              style="letter-spacing: 1px;">
+              <i class="fas fa-rocket me-2"></i> RUN ANALYSIS & GENERATE REPORT
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 4: Results Section -->
+  <div class="row mt-4 mb-4">
+    <div class="col-12">
+      <div class="card ml-card shadow-sm border-0 overflow-hidden">
+        <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
+          <h5 class="mb-0 fw-bold d-flex align-items-center">
+            <span class="step-badge bg-white text-dark me-2" style="width:30px; height:30px;">4</span>
+            <i class="fas fa-file-alt me-2"></i>Report Summary
+          </h5>
+          <button id="btnDownloadPDF" class="btn btn-sm btn-outline-light d-none">
+            <i class="fas fa-file-pdf me-1"></i> Download PDF
+          </button>
+        </div>
+        <div class="card-body bg-light" id="reportArea">
+          <div class="text-center py-5 text-muted">
+            <i class="fas fa-clipboard-list fa-3x mb-3 opacity-25"></i>
+            <p>No analysis results available yet. Configure your options above and click "Run Analysis".</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-5">
+    <!-- Step 5: Custom Python Code -->
+    <div class="col-lg-12">
+      <div class="card ml-card shadow-sm border-0">
+        <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
+          <h5 class="mb-0 fw-bold d-flex align-items-center">
+            <span class="step-badge bg-white text-dark me-2" style="width:30px; height:30px;">5</span>
+            <i class="fas fa-code me-2"></i>Custom Python Editor
+          </h5>
+          <div class="d-flex gap-2">
+            <button id="btnResetCode" class="btn btn-sm btn-outline-light">
+              <i class="fas fa-undo me-1"></i> Reset
+            </button>
+            <button id="btnRunCode" class="btn btn-sm btn-light text-dark px-3 fw-bold">
+              <i class="fas fa-play me-1"></i> Run Code
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+
+          <p class="text-muted small mb-3">
+            Write custom Python code to analyze your data. A pandas DataFrame <code>df</code> is pre-loaded.
+            Printed outputs and <code>matplotlib</code> plots are captured automatically.
+          </p>
+
+          <div class="editor-container border rounded-3 overflow-hidden mb-3">
+            <textarea id="customCodeEditor"></textarea>
+          </div>
+
+          <div id="customResults" class="mt-4 d-none">
+            <div class="card border-0 bg-light">
+              <div class="card-header bg-white border-0 py-2 d-flex justify-content-between align-items-center">
+                <small class="fw-bold text-muted text-uppercase"><i class="fas fa-terminal me-2"></i>Console
+                  Output</small>
+                <button class="btn btn-sm text-muted p-0"
+                  onclick="document.getElementById('customOutputPre').textContent=''"><i
+                    class="fas fa-eraser"></i></button>
+              </div>
+              <div class="card-body p-0">
+                <pre id="customOutputPre" class="bg-dark text-light p-3 rounded-bottom-3 small mb-0"
+                  style="max-height: 400px; overflow-y: auto; font-family: 'Fira Code', monospace;"></pre>
+              </div>
+            </div>
+
+            <div id="customErrorArea" class="alert alert-danger mt-3 d-none border-0 shadow-sm">
+              <h6 class="fw-bold small mb-1"><i class="fas fa-exclamation-triangle me-2"></i>Runtime Error</h6>
+              <pre id="customErrorPre" class="small mb-0" style="white-space: pre-wrap; font-family: inherit;"></pre>
+            </div>
+
+            <div id="customPlotsSection" class="mt-4 d-none">
+              <h6 class="fw-bold small text-muted text-uppercase mb-3"><i class="fas fa-chart-bar me-2"></i>Generated
+                Plots</h6>
+              <div id="customPlotsArea" class="row g-3"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ML Tool Help Modal -->
+<div class="modal fade" id="mlHelpModal" tabindex="-1" aria-labelledby="mlHelpModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-info text-white">
+        <h5 class="modal-title" id="mlHelpModalLabel"><i class="fas fa-question-circle me-2"></i>ML Tool Help</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <h6>How to Use the ML Tool</h6>
+        <p>1. <strong>Upload Dataset:</strong> Select your CSV or Excel file containing historical sensor data.</p>
+        <p>2. <strong>Quick Visualizations:</strong> Choose a response variable and features to plot their
+          relationships.</p>
+        <p>3. <strong>Modeling Options:</strong> Select your target, split percentage, and models to train.</p>
+        <p>4. <strong>Run Analysis:</strong> Click to train the models and generate a comprehensive PDF report.</p>
+        <p>5. <strong>Custom Python Editor:</strong> Write and execute custom data analysis scripts directly in your
+          browser.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.21.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<script>
+  const ANALYZE_URL = "{% url 'ml_analyze' %}";
+  let dataRows = [];
+  let headers = [];
+
+  const fileInput = document.getElementById('fileInput');
+  const fileInfo = document.getElementById('fileInfo');
+  const fileNameDisplay = document.getElementById('fileNameDisplay');
+  const pairResponse = document.getElementById('pairResponse');
+  const numericVars = document.getElementById('numericVars');
+  const plotsArea = document.getElementById('plotsArea');
+  const responseVar = document.getElementById('responseVar');
+  const featuresList = document.getElementById('featuresList');
+  const trainSplit = document.getElementById('trainSplit');
+  const trainPct = document.getElementById('trainPct');
+  const testPct = document.getElementById('testPct');
+  const btnPair = document.getElementById('btnPair');
+  const btnAnalyze = document.getElementById('btnAnalyze');
+  const reportArea = document.getElementById('reportArea');
+  const btnDownloadPDF = document.getElementById('btnDownloadPDF');
+
+  btnDownloadPDF.addEventListener('click', () => {
+    const element = document.getElementById('reportArea');
+    const originalWidth = element.style.width;
+    // Portrait Letter: 8.5" usable ≈ 7.7" @96dpi = 740px
+    element.style.width = '740px';
+
+    const opt = {
+      margin: [8, 8, 8, 8],
+      filename: 'PlantLife365_Analysis_Report.pdf',
+      image: { type: 'jpeg', quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true, width: 740 },
+      jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(element).save().then(() => {
+      element.style.width = originalWidth;
+    });
+  });
+
+  trainSplit.addEventListener('input', () => {
+    trainPct.textContent = trainSplit.value;
+    testPct.textContent = 100 - trainSplit.value;
+  });
+
+  fileInput.addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+
+    fileNameDisplay.textContent = f.name;
+    fileInfo.classList.remove('d-none');
+
+    const name = f.name.toLowerCase();
+    if (name.endsWith('.csv')) {
+      const txt = await f.text();
+      const parsed = Papa.parse(txt, { header: true, dynamicTyping: true, skipEmptyLines: true });
+      headers = parsed.meta.fields || [];
+      dataRows = parsed.data;
+      afterLoad();
+    } else if (name.endsWith('.xls') || name.endsWith('.xlsx')) {
+      const ab = await f.arrayBuffer();
+      const wb = XLSX.read(ab, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(ws, { defval: null });
+      headers = json.length ? Object.keys(json[0]) : [];
+      dataRows = json;
+      afterLoad();
+    } else {
+      alert('Unsupported file type. Use CSV or Excel.');
+    }
+  });
+
+  function afterLoad() {
+    pairResponse.innerHTML = '';
+    numericVars.innerHTML = '';
+    responseVar.innerHTML = '';
+    featuresList.innerHTML = '';
+
+    headers.forEach(h => {
+      const opt = document.createElement('option'); opt.value = h; opt.textContent = h;
+      pairResponse.appendChild(opt.cloneNode(true));
+      responseVar.appendChild(opt.cloneNode(true));
+
+      const idViz = 'viz_' + h.replace(/[^a-z0-9]/gi, '_');
+      const divViz = document.createElement('div'); divViz.className = 'form-check bg-light px-2 py-1 rounded-2 border mb-0';
+      divViz.style.backgroundColor = '#f8f9fa';
+      divViz.innerHTML = `<input class="form-check-input viz-checkbox" type="checkbox" value="${h}" id="${idViz}">
+                         <label class="form-check-label small" for="${idViz}">${h}</label>`;
+      numericVars.appendChild(divViz);
+
+      const id = 'feat_' + h.replace(/[^a-z0-9]/gi, '_');
+      const div = document.createElement('div'); div.className = 'form-check mb-2';
+      div.innerHTML = `<input class="form-check-input feature-checkbox" type="checkbox" value="${h}" id="${id}">
+                         <label class="form-check-label small" for="${id}">${h}</label>`;
+      featuresList.appendChild(div);
+    });
+
+    // Auto-select common agricultural targets
+    ['water_level', 'moisture', 'water', 'temp', 'temperature'].forEach(target => {
+      for (let i = 0; i < responseVar.options.length; i++) {
+        if (responseVar.options[i].value.toLowerCase() === target) {
+          responseVar.selectedIndex = i;
+          pairResponse.selectedIndex = i;
+        }
+      }
+    });
+  }
+
+  btnPair.addEventListener('click', () => {
+    if (!dataRows.length) { alert('Upload a data file first.'); return; }
+
+    // Clear initial text if it's the first plot
+    if (plotsArea.querySelector('p')) plotsArea.innerHTML = '';
+
+    const resp = pairResponse.value;
+    const selected = Array.from(document.querySelectorAll('.viz-checkbox:checked')).map(cb => cb.value);
+    const varsToPlot = selected.length ? selected : headers.filter(h => h !== resp);
+
+    varsToPlot.forEach(v => {
+      const x = dataRows.map(r => r[v]);
+      const y = dataRows.map(r => r[resp]);
+      const colDiv = document.createElement('div'); colDiv.className = 'col-md-6';
+      const innerDiv = document.createElement('div'); innerDiv.className = 'plot-container'; innerDiv.style.height = '400px';
+      colDiv.appendChild(innerDiv);
+      plotsArea.appendChild(colDiv);
+
+      const trace = { x: x, y: y, mode: 'markers', type: 'scatter', name: v, marker: { color: '#27ae60', opacity: 0.6, size: 4 } };
+      const layout = {
+        title: { text: `${resp} vs ${v}`, font: { size: 12, family: 'Inter, sans-serif' } },
+        xaxis: { title: { text: v, font: { size: 10 } }, gridcolor: '#f0f0f0' },
+        yaxis: { title: { text: resp, font: { size: 10 } }, gridcolor: '#f0f0f0' },
+        margin: { l: 30, r: 10, t: 30, b: 30 },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)'
+      };
+      Plotly.newPlot(innerDiv, [trace], layout, { responsive: true, displayModeBar: false });
+    });
+  });
+
+  // CSRF Helper
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  btnAnalyze.addEventListener('click', async () => {
+    if (!dataRows.length) { alert('Upload a data file first.'); return; }
+    const resp = responseVar.value;
+    const features = Array.from(document.querySelectorAll('.feature-checkbox:checked')).map(i => i.value);
+    if (!resp || features.length === 0) { alert('Choose response variable and at least one feature.'); return; }
+    const models = Array.from(document.querySelectorAll('.model-checkbox:checked')).map(i => i.value);
+    if (models.length === 0) { alert('Select at least one model.'); return; }
+
+    const fd = new FormData();
+    if (fileInput.files[0]) fd.append('datafile', fileInput.files[0]);
+    fd.append('options', JSON.stringify({
+      response: resp,
+      features: features,
+      train_pct: parseInt(trainSplit.value),
+      random_seed: parseInt(document.getElementById('randomSeed').value || 42),
+      models: models
+    }));
+
+    reportArea.innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-success" role="status"></div>
+            <p class="mt-3 text-muted">Training models and generating report... this usually takes 2-5 seconds.</p>
+        </div>`;
+
+    try {
+      const respFetch = await fetch(ANALYZE_URL, {
+        method: 'POST',
+        body: fd,
+        headers: {
+          'X-CSRFToken': getCookie('csrftoken')
+        }
+      });
+
+      if (!respFetch.ok) {
+        const errorData = await respFetch.json().catch(() => ({}));
+        const msg = errorData.error || `Server error: ${respFetch.status}`;
+        reportArea.innerHTML = `<div class="alert alert-danger m-3"><strong>Oops!</strong> ${msg}</div>`;
+        return;
+      }
+
+      const result = await respFetch.json();
+      if (result.report_html) {
+        reportArea.innerHTML = result.report_html;
+        btnDownloadPDF.classList.remove('d-none');
+        reportArea.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        reportArea.innerHTML = '<div class="alert alert-warning m-3">Analysis finished but no HTML report was provided.</div>';
+        btnDownloadPDF.classList.add('d-none');
+      }
+    } catch (err) {
+      reportArea.innerHTML = `<div class="alert alert-danger m-3"><strong>Connection error:</strong> ${err.message}</div>`;
+    }
+  });
+
+  // ============================================================
+  //  STEP 5 - CUSTOM CODE EDITOR
+  // ============================================================
+
+  const CUSTOM_CODE_URL = "{% url 'ml_custom_code' %}";
+
+  const STARTER_TEMPLATE = `# -------------------------------------------------------
+# PlantLife360 - Custom ML Code Editor
+# -------------------------------------------------------
+# The variable 'df' is already loaded as a pandas DataFrame.
+# Available: pd, np, plt, sns, train_test_split,
+#            LinearRegression, RandomForestRegressor,
+#            GradientBoostingRegressor, SVR,
+#            mean_squared_error, r2_score
+# -------------------------------------------------------
+
+# --- 1. Inspect your data ---
+print("Shape:", df.shape)
+print("Columns:", list(df.columns))
+print(df.describe().round(2).to_string())
+
+# --- 2. Prepare features & target ---
+# Let's try to automatically find numeric columns:
+numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+
+if not numeric_cols:
+    print("WARNING: No numeric columns found in the dataset!")
+    TARGET_COL = df.columns[-1]
+    FEATURE_COLS = list(df.columns[:-1])
+else:
+    TARGET_COL = numeric_cols[0]           # assume first numeric is target
+    FEATURE_COLS = numeric_cols[1:]        # others as features
+
+print(f"\\nUsing target: {TARGET_COL}")
+print(f"Using features: {FEATURE_COLS}")
+
+# Filter for numeric, drop NaNs
+df_clean = df[FEATURE_COLS + [TARGET_COL]].apply(pd.to_numeric, errors='coerce').dropna()
+
+if df_clean.empty:
+    raise ValueError("The dataset is empty after dropping non-numeric values or NaNs. Please check your column selection.")
+
+X = df_clean[FEATURE_COLS].values
+y = df_clean[TARGET_COL].values
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+print(f"\\nTraining samples: {len(X_train)}, Test samples: {len(X_test)}")
+
+# --- 3. Train a model ---
+model = RandomForestRegressor(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+preds = model.predict(X_test)
+
+# --- 4. Evaluate ---
+rmse = mean_squared_error(y_test, preds) ** 0.5
+r2   = r2_score(y_test, preds)
+print(f"\\nRMSE : {rmse:.4f}")
+print(f"R\\u00b2   : {r2:.4f}")
+
+# --- 5. Plot results ---
+plt.scatter(X_test[:, 0], y_test, alpha=0.5, color='#3498db', edgecolors='white', linewidths=0.5, label='Actual')
+sort_idx = np.argsort(X_test[:, 0])
+plt.plot(X_test[:, 0][sort_idx], preds[sort_idx], color='red', linewidth=1.5, label='Fitted Line')
+plt.xlabel(FEATURE_COLS[0])
+plt.ylabel(TARGET_COL)
+plt.title(f"{TARGET_COL} vs {FEATURE_COLS[0]} (Fitted Line)")
+plt.legend()
+plt.tight_layout()`;
+
+  const cmEditor = CodeMirror.fromTextArea(
+    document.getElementById('customCodeEditor'),
+    {
+      mode: 'python',
+      theme: 'dracula',
+      lineNumbers: true,
+      matchBrackets: true,
+      autoCloseBrackets: true,
+      indentUnit: 4,
+      tabSize: 4,
+      indentWithTabs: false,
+      lineWrapping: false,
+      extraKeys: {
+        "Tab": function (cm) { cm.replaceSelection("    ", "end"); },
+        "Ctrl-Enter": runCustomCode
+      }
+    }
+  );
+
+  cmEditor.setValue(STARTER_TEMPLATE);
+
+  document.getElementById('btnResetCode').addEventListener('click', () => {
+    if (confirm('Reset code to the starter template? Your changes will be lost.')) {
+      cmEditor.setValue(STARTER_TEMPLATE);
+      cmEditor.clearHistory();
+    }
+  });
+
+  document.getElementById('btnRunCode').addEventListener('click', runCustomCode);
+
+  async function runCustomCode() {
+    const code = cmEditor.getValue().trim();
+    if (!code) { alert('Write some code first.'); return; }
+
+    const uploadedFile = fileInput.files[0];
+    if (!uploadedFile) {
+      alert('Please upload a dataset in Step 1 first. The server needs the file to load your DataFrame.');
+      return;
+    }
+
+    const btnRun = document.getElementById('btnRunCode');
+    const originalBtnHtml = btnRun.innerHTML;
+    btnRun.disabled = true;
+    btnRun.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Running...';
+
+    const resultsArea = document.getElementById('customResults');
+    const outputPre = document.getElementById('customOutputPre');
+    const errorArea = document.getElementById('customErrorArea');
+    const errorPre = document.getElementById('customErrorPre');
+    const plotsSection = document.getElementById('customPlotsSection');
+    const customPlotsEl = document.getElementById('customPlotsArea');
+
+    resultsArea.classList.remove('d-none');
+    errorArea.classList.add('d-none');
+    plotsSection.classList.add('d-none');
+    outputPre.textContent = 'Executing your code on the server...';
+    customPlotsEl.innerHTML = '';
+
+    const fd = new FormData();
+    fd.append('datafile', uploadedFile);
+    fd.append('code', code);
+
+    try {
+      const response = await fetch(CUSTOM_CODE_URL, {
+        method: 'POST',
+        body: fd,
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+      });
+      const data = await response.json();
+
+      outputPre.textContent = data.output || '(no output printed)';
+
+      if (data.error) {
+        errorArea.classList.remove('d-none');
+        errorPre.textContent = data.error;
+      }
+
+      if (data.plots && data.plots.length > 0) {
+        plotsSection.classList.remove('d-none');
+        data.plots.forEach((b64, idx) => {
+          const col = document.createElement('div');
+          col.className = 'col-md-6';
+          col.innerHTML = `
+            <div class="card border-0 shadow-sm">
+              <div class="card-header bg-white border-0 py-2">
+                <small class="fw-bold text-muted text-uppercase">Plot ${idx + 1}</small>
+                <a href="data:image/png;base64,${b64}" download="plot_${idx + 1}.png"
+                   class="btn btn-sm btn-outline-secondary float-end py-0 px-2" style="font-size:0.7rem;">
+                  <i class="fas fa-download me-1"></i>Save
+                </a>
+              </div>
+              <div class="card-body p-2 text-center">
+                <img src="data:image/png;base64,${b64}" alt="Plot ${idx + 1}" class="img-fluid" />
+              </div>
+            </div>`;
+          customPlotsEl.appendChild(col);
+        });
+      }
+
+      resultsArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (err) {
+      errorArea.classList.remove('d-none');
+      errorPre.textContent = 'Network or server error: ' + err.message;
+      outputPre.textContent = '(execution did not complete)';
+    } finally {
+      btnRun.disabled = false;
+      btnRun.innerHTML = originalBtnHtml;
+    }
+  }
+
+  document.addEventListener('keydown', (e) => { if (e.key === 'u' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); fileInput.click(); } });
+</script>
+{% endblock %}
