@@ -9,7 +9,7 @@ import requests
 app = Flask(__name__)
 
 # Initialize photo paths
-base_path = "/home/siol1/Documents/Proto"
+base_path = "PROJECT_ROOT/Proto"
 
 # Retrieve IP
 ip = '192.168.4.1'

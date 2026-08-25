@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-base_path = "/home/siol1/Documents/Data"
+base_path = "PROJECT_ROOT/Data"
 fn = base_path + '/20251211_DetectionLog.csv'
 
 df = pd.read_csv(fn)

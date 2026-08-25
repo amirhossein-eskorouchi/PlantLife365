@@ -319,6 +319,9 @@ The repository explicitly distinguishes among:
 | Repository map | [docs/REPOSITORY_MAP.md](docs/REPOSITORY_MAP.md) |
 | Repository status | [docs/REPOSITORY_STATUS.md](docs/REPOSITORY_STATUS.md) |
 | Final audit | [docs/FINAL_AUDIT.md](docs/FINAL_AUDIT.md) |
+| Citation | [CITATION.cff](CITATION.cff) |
+| License | [LICENSE](LICENSE) |
+| Public-release notice | [NOTICE](NOTICE) |
 
 ---
 
@@ -332,6 +335,23 @@ Historical research extensions remain separated from the canonical runtime.
 
 ---
 
+## Team
+
+PlantLife365 credits the following project team members:
+
+- Amirhossein Eskorouchi
+- Abhro Shome Pias
+- Dongmin Ethan Kang
+- Niraj Ghimire
+
+## Citation
+
+If you use PlantLife365, cite the software release using the machine-readable metadata in [CITATION.cff](CITATION.cff).
+
+GitHub displays these metadata through the **Cite this repository** control.
+
 ## License
 
-No license file is currently included. Review licensing before public release or redistribution.
+Independently authored maintained PlantLife365 software and documentation are released under the [MIT License](LICENSE).
+
+Historical reference material is preserved for provenance and is not automatically relicensed under MIT. Review [NOTICE](NOTICE) and the [historical-reference policy](docs/HISTORICAL_REFERENCE_POLICY.md) before reusing historical files.

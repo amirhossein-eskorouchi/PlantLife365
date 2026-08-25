@@ -12,7 +12,7 @@ import queue
 app = Flask(__name__)
 
 # Initialize photo paths
-base_path = "/home/siol1/Documents/Prototype"
+base_path = "PROJECT_ROOT/Prototype"
 
 # Ensure output directory exists
 os.makedirs(base_path, exist_ok=True)

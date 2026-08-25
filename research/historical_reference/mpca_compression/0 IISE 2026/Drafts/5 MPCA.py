@@ -15,8 +15,8 @@ print('Loaded all libraries')
 
 #%% 
 # 1. Experimental setup
-#trainPath = '/home/siol1/Documents/Photos'
-trainPath = '/home/siol1/Documents/Data'
+#trainPath = 'PROJECT_ROOT/Photos'
+trainPath = 'PROJECT_ROOT/Data'
 
 save = trainPath + '/1 Original RGB Data'
 compSave = trainPath + '/2 Compressed RGB Data'

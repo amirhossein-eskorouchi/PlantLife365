@@ -94,3 +94,22 @@ Its archive SHA-256 is:
 
 No historical source file should be treated as canonical merely because
 it appears in this reference area.
+## Public-release sanitization
+
+Before the first public release, reviewed historical source references
+were scanned for workstation-specific paths.
+
+Five historical files contained a private Linux document root. That
+root was replaced with the portable placeholder `PROJECT_ROOT`. No
+maintained runtime behavior was changed.
+
+The transformation is recorded in:
+
+`research/inventory/historical_sanitization_manifest.csv`
+
+The manifest preserves both the original archive-derived SHA-256 and
+the sanitized public-file SHA-256 for each transformed historical
+reference.
+
+The original unsanitized files remain available only in the immutable
+private source archive identified in `docs/PROVENANCE.md`.

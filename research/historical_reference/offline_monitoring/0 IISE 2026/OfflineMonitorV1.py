@@ -10,8 +10,8 @@ ESP_IP = "192.168.4.1"
 SIGNAL_URL = f"http://{ESP_IP}/signals"
 CAM_URL = f"http://{ESP_IP}/cam-mid.jpg"
 
-csv_path = "/home/siol1/Documents/timeseries.csv"
-frame_save_dir = "/home/siol1/Documents/frames"
+csv_path = "PROJECT_ROOT/timeseries.csv"
+frame_save_dir = "PROJECT_ROOT/frames"
 os.makedirs(frame_save_dir, exist_ok=True)
 
 # Prepare CSV file with header

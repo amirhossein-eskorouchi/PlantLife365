@@ -72,6 +72,9 @@ jobs:
       - name: Check Python syntax
         run: python scripts/check_syntax.py
 
+      - name: Audit public-release boundary
+        run: python scripts/audit_release.py
+
 
       - name: Run Django system check
         run: python manage.py check

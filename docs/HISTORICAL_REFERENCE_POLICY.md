@@ -69,3 +69,24 @@ It does not by itself support statements such as:
 
 Claims must match the actual maintained implementation and available
 evaluation evidence.
+## Workstation-path sanitization
+
+Historical source references selected for public preservation must not
+expose private account identifiers or workstation-specific project
+roots.
+
+When such a path is present, the public historical copy may replace
+only the private root with a descriptive portable placeholder. Each
+transformation must preserve:
+
+- the public destination;
+- the original archive-derived SHA-256;
+- the sanitized public SHA-256;
+- the number and type of replacements; and
+- the historical-reference disposition.
+
+PlantLife365 records these transformations in
+`research/inventory/historical_sanitization_manifest.csv`.
+
+This sanitization does not convert historical reference code into
+maintained application code.

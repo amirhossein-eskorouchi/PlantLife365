@@ -1,0 +1,60 @@
+PlantLife365 Public Release Notice
+
+PlantLife365 contains independently authored maintained software,
+documentation, synthetic examples, and preserved historical reference
+material.
+
+MIT-Licensed Material
+---------------------
+
+Unless a file or directory states otherwise, the maintained PlantLife365
+application code and independently authored repository documentation are
+licensed under the MIT License in the root LICENSE file.
+
+Team Credit
+-----------
+
+The PlantLife365 software project credits:
+
+- Amirhossein Eskorouchi
+- Abhro Shome Pias
+- Dongmin Ethan Kang
+- Niraj Ghimire
+
+Historical Reference Material
+-----------------------------
+
+Files under research/historical_reference/ are retained for research
+provenance and historical understanding. Their inclusion does not
+automatically relicense them under MIT.
+
+Historical reference material may contain independently authored,
+collaborative, experimental, or third-party-derived content. Reuse of an
+individual historical file requires review of its provenance, embedded
+notices, and any applicable original terms.
+
+Workstation-specific roots in selected historical files were replaced
+with the portable PROJECT_ROOT placeholder before public release. The
+transformations and original/sanitized hashes are recorded in:
+
+research/inventory/historical_sanitization_manifest.csv
+
+Third-Party Dependencies
+------------------------
+
+Python, Django, scientific-computing, visualization, firmware, and other
+third-party dependencies retain their own licenses. Dependency declaration
+in this repository does not alter those licenses.
+
+Data and Model Boundary
+-----------------------
+
+The repository does not distribute private user databases, credentials,
+device secrets, real monitoring media, trained model artifacts, or the
+complete private historical development archive.
+
+No Warranty
+-----------
+
+PlantLife365 is research/development software. It is not represented as a
+hardened production deployment or a source of validated agronomic advice.

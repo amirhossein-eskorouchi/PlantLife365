@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use PlantLife365, please cite this software release."
+title: "PlantLife365"
+type: software
+version: 0.1.0
+date-released: 2026-08-25
+abstract: "An IoT-enabled agricultural monitoring and decision-support platform integrating ESP32 sensing, imaging, a Django dashboard, exploratory analytics, and an optional local AI assistant."
+authors:
+  - family-names: "Eskorouchi"
+    given-names: "Amirhossein"
+  - family-names: "Pias"
+    given-names: "Abhro Shome"
+  - family-names: "Kang"
+    given-names: "Dongmin Ethan"
+  - family-names: "Ghimire"
+    given-names: "Niraj"
+repository-code: "https://github.com/amirhossein-eskorouchi/PlantLife365"
+url: "https://github.com/amirhossein-eskorouchi/PlantLife365"
+license: "MIT"
+keywords:
+  - "precision agriculture"
+  - "agricultural monitoring"
+  - "internet of things"
+  - "ESP32"
+  - "Django"
+  - "environmental sensing"
+  - "edge computing"
+  - "machine learning"
+  - "research software"

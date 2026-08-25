@@ -112,3 +112,23 @@ The repository audit does not replace physical validation of:
 - field-specific operating conditions
 
 These remain hardware and deployment integration responsibilities.
+## Public Release Addendum
+
+Before version 0.1.0, the repository received an additional
+public-release boundary audit.
+
+The audit verifies:
+
+- presence of the MIT License, NOTICE, and citation metadata;
+- four credited PlantLife365 team members;
+- absence of private workstation paths;
+- absence of secrets, local databases, runtime media, caches, model
+  artifacts, firmware binaries, and raw archives;
+- the 25 MB tracked-file boundary;
+- integrity of the historical sanitization manifest;
+- linkage between original archive-derived and sanitized public hashes;
+- README licensing and citation boundaries; and
+- version 0.1.0 release metadata.
+
+The audit is implemented in `scripts/audit_release.py` and runs in
+GitHub Actions for every push and pull request involving `main`.
