@@ -23,7 +23,7 @@ pandas==2.3.3
 pillow==12.3.0
 pluggy==1.6.0
 Pygments==2.21.0
-pyparsing==3.3.2
+pyparsing==3.3.3
 pyserial==3.5
 pytest==8.4.2
 pytest-django==4.14.0
